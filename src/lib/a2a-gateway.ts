@@ -25,6 +25,8 @@ import {
 } from "@a2a-js/sdk/client";
 import { GrpcTransportFactory } from "@a2a-js/sdk/client/grpc";
 import { validateAgentCard } from "./compliance";
+import { enforceDemoConnectionPolicy, enforceDemoOperationPolicy } from "./demo-policy";
+import { DEMO_MAX_TIMEOUT_MS, isDemoDeployment } from "./deployment";
 import { createSafeFetch, authHeaders } from "./safe-fetch";
 import { assertSafeAgentCard, assertSafeInterfaceUrl, assertSafeUrl } from "./url-safety";
 import type { ConnectionConfig, DiscoverResponse, OperationAction, OperationResponse, WireEvent } from "./workbench-types";
@@ -33,7 +35,38 @@ const DEFAULT_TIMEOUT = 60_000;
 const MAX_CARD_BYTES = 2 * 1024 * 1024;
 
 function timeout(config: ConnectionConfig) {
-  return Math.min(Math.max(config.timeoutMs ?? DEFAULT_TIMEOUT, 1_000), 180_000);
+  const max = isDemoDeployment() ? DEMO_MAX_TIMEOUT_MS : 180_000;
+  return Math.min(Math.max(config.timeoutMs ?? DEFAULT_TIMEOUT, 1_000), max);
+}
+
+async function readTextWithinLimit(response: Response, limit: number): Promise<string> {
+  const reader = response.body?.getReader();
+  if (!reader) return "";
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) return new TextDecoder().decode(Buffer.concat(chunks));
+      total += value.byteLength;
+      if (total > limit) {
+        await reader.cancel();
+        throw new Error(`Agent Card exceeds the ${Math.floor(limit / 1024 / 1024)} MB safety limit.`);
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+function cardAllowedInDeployment(card: AgentCard): AgentCard {
+  if (!isDemoDeployment()) return card;
+  const supportedInterfaces = card.supportedInterfaces.filter((item) => item.protocolBinding.toUpperCase() !== "GRPC");
+  if (!supportedInterfaces.length) {
+    throw new Error("The public demo supports public JSON-RPC and HTTP+JSON endpoints. Run Workbench locally to test gRPC agents.");
+  }
+  return { ...card, supportedInterfaces };
 }
 
 function requestOptions(config: ConnectionConfig): RequestOptions {
@@ -55,13 +88,13 @@ export function selectAdvertisedInterface(
 }
 
 export async function discoverAgent(config: ConnectionConfig): Promise<DiscoverResponse & { normalizedCard: AgentCard }> {
+  await enforceDemoConnectionPolicy(config);
   await assertSafeUrl(config.cardUrl);
   const telemetry: WireEvent[] = [];
   const started = performance.now();
   const fetchImpl = createSafeFetch({ auth: config.auth, headers: config.headers, telemetry, timeoutMs: timeout(config) });
   const response = await fetchImpl(config.cardUrl, { headers: { Accept: "application/json", "A2A-Version": "1.0" } });
-  const body = await response.text();
-  if (body.length > MAX_CARD_BYTES) throw new Error("Agent Card exceeds the 2 MB safety limit.");
+  const body = await readTextWithinLimit(response, MAX_CARD_BYTES);
   let rawCard: Record<string, unknown>;
   try { rawCard = JSON.parse(body) as Record<string, unknown>; }
   catch { throw new Error(`Agent Card returned invalid JSON (HTTP ${response.status}).`); }
@@ -76,6 +109,7 @@ export async function discoverAgent(config: ConnectionConfig): Promise<DiscoverR
     throw new Error(`The card could not be normalized by the official A2A SDK: ${message}`);
   }
   await assertSafeAgentCard(AgentCard.toJSON(normalizedCard) as Record<string, unknown>);
+  normalizedCard = cardAllowedInDeployment(normalizedCard);
   return {
     card: AgentCard.toJSON(normalizedCard) as Record<string, unknown>,
     rawCard,
@@ -92,7 +126,7 @@ async function createClient(config: ConnectionConfig): Promise<{ client: Client;
   const transports = [
     new JsonRpcTransportFactory({ fetchImpl, legacyCompat: { enabled: true } }),
     new RestTransportFactory({ fetchImpl, legacyCompat: { enabled: true } }),
-    new GrpcTransportFactory({ legacyCompat: { enabled: true } }),
+    ...(!isDemoDeployment() ? [new GrpcTransportFactory({ legacyCompat: { enabled: true } })] : []),
   ];
   let card = discovery.normalizedCard;
   if (config.interfaceUrl || config.protocolBinding || config.protocolVersion) {
@@ -181,6 +215,7 @@ export function recoverMalformedLegacyResult(telemetry: WireEvent[]): unknown | 
 }
 
 export async function executeOperation(input: OperationInput): Promise<OperationResponse> {
+  await enforceDemoOperationPolicy(input);
   const started = performance.now();
   const { client, telemetry } = await createClient(input.connection);
   const params = input.params ?? {};
@@ -231,6 +266,7 @@ export async function streamOperation(input: OperationInput): Promise<{
   client: Client;
   telemetry: WireEvent[];
 }> {
+  await enforceDemoOperationPolicy(input);
   const { client, telemetry } = await createClient(input.connection);
   const params = input.params ?? {};
   const options = requestOptions(input.connection);

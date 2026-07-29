@@ -40,6 +40,12 @@ a2a-workbench --hostname 0.0.0.0 --port 3001
 
 Open the displayed local URL, enter an agent’s `/.well-known/agent-card.json` URL, and select the interface you want to test. Node.js 20.9 or later is required.
 
+## Hosted public demo
+
+The optional demo at [a2a-workbench.allsrc.dev](https://a2a-workbench.allsrc.dev) is a safe place to try public agents: its root is the project/about page and the tester is at `/workbench`. It accepts publicly reachable **HTTPS JSON-RPC and HTTP+JSON** agents without a target allowlist.
+
+The hosted demo deliberately excludes credentials, custom headers, private networks, gRPC, push webhooks, HTTP-only endpoints, and large attachments. Those are available in a local `npx a2a-workbench` installation, where the network and credentials remain under your control. See [DEPLOYMENT.md](DEPLOYMENT.md) for the Vercel setup, server-side protections, and required WAF rate limits.
+
 ## What it is for
 
 An agent may advertise a valid Agent Card and still behave poorly in a real client: it may lose context, stream invalid transitions, return incomplete artifacts, or send structured data that is hard to use. A2A Workbench makes those behaviors visible during an interactive test session while preserving the evidence needed to investigate them.

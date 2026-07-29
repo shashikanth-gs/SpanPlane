@@ -1,10 +1,30 @@
 import { assertSafeUrl } from "./url-safety";
+import { isDemoDeployment } from "./deployment";
 import { redactHeaders, redactValue } from "./redact";
 import type { AuthConfig, WireEvent } from "./workbench-types";
 
 const MAX_REDIRECTS = 3;
 const MAX_CONTENT_LENGTH = 25 * 1024 * 1024;
 const MAX_TELEMETRY_BODY = 2 * 1024 * 1024;
+
+async function responsePreview(response: Response): Promise<string | undefined> {
+  const reader = response.clone().body?.getReader();
+  if (!reader) return undefined;
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) return new TextDecoder().decode(Buffer.concat(chunks));
+      total += value.byteLength;
+      if (total > MAX_TELEMETRY_BODY) return undefined;
+      chunks.push(value);
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+    reader.releaseLock();
+  }
+}
 
 export function authHeaders(auth: AuthConfig): Record<string, string> {
   switch (auth.type) {
@@ -23,14 +43,25 @@ export function createSafeFetch(options: {
 }): typeof fetch {
   return async function safeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     let url = typeof input === "string" || input instanceof URL ? new URL(input.toString()) : new URL(input.url);
+    const initialOrigin = url.origin;
     let requestInit = init;
     for (let redirect = 0; redirect <= MAX_REDIRECTS; redirect += 1) {
       await assertSafeUrl(url.toString());
       const sourceHeaders = input instanceof Request ? input.headers : undefined;
       const headers = new Headers(sourceHeaders);
       new Headers(init?.headers).forEach((value, key) => headers.set(key, value));
-      Object.entries(options.headers).forEach(([key, value]) => headers.set(key, value));
-      Object.entries(authHeaders(options.auth)).forEach(([key, value]) => headers.set(key, value));
+      // Never forward Workbench-provided secrets when a redirect changes
+      // origin. This also makes local testing safer for misconfigured cards.
+      if (url.origin === initialOrigin) {
+        Object.entries(options.headers).forEach(([key, value]) => headers.set(key, value));
+        Object.entries(authHeaders(options.auth)).forEach(([key, value]) => headers.set(key, value));
+      } else {
+        headers.delete("authorization");
+        headers.delete("cookie");
+        headers.delete("proxy-authorization");
+        Object.keys(options.headers).forEach((key) => headers.delete(key));
+        Object.keys(authHeaders(options.auth)).forEach((key) => headers.delete(key));
+      }
       const signal = requestInit?.signal ?? AbortSignal.timeout(options.timeoutMs);
       const started = performance.now();
       const method = requestInit?.method ?? (input instanceof Request ? input.method : "GET");
@@ -67,16 +98,20 @@ export function createSafeFetch(options: {
           const location = response.headers.get("location");
           if (!location) throw new Error("Agent returned a redirect without a Location header.");
           if (redirect === MAX_REDIRECTS) throw new Error("Agent exceeded the redirect limit.");
-          url = new URL(location, url);
+          const nextUrl = new URL(location, url);
+          if (isDemoDeployment() && (nextUrl.protocol !== "https:" || nextUrl.hostname !== url.hostname || nextUrl.port !== url.port)) {
+            throw new Error("The public demo permits redirects only within the same HTTPS agent origin.");
+          }
+          url = nextUrl;
           requestInit = response.status === 303 ? { ...requestInit, method: "GET", body: undefined } : requestInit;
           continue;
         }
         if (response.headers.get("content-type")?.includes("json")) {
-          const responseText = await response.clone().text();
-          if (responseText.length <= MAX_TELEMETRY_BODY) {
+          const responseText = await responsePreview(response);
+          if (responseText !== undefined) {
             try { responseEvent.body = redactValue(JSON.parse(responseText)); }
             catch { responseEvent.body = responseText; }
-          } else responseEvent.body = `[response body omitted: ${responseText.length} bytes]`;
+          } else responseEvent.body = `[response body omitted: exceeds ${MAX_TELEMETRY_BODY / 1024 / 1024} MB]`;
         }
         options.telemetry.push(responseEvent);
         return response;

@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import {
   Activity, Braces, Bug, Check, ChevronRight, CircleAlert, CircleCheck, CircleX, Clipboard,
   Clock3, FileJson, ListTodo, LoaderCircle, Menu, MessageSquareText, Moon,
@@ -17,6 +18,9 @@ import { readSse } from "@/lib/sse";
 import type {
   AuthConfig, ConnectionConfig, DiscoverResponse, OperationAction, OperationResponse, WireEvent,
 } from "@/lib/workbench-types";
+
+const isPublicDemo = process.env.NEXT_PUBLIC_A2A_DEMO_MODE === "true";
+const demoRawAttachmentLimit = 1024 * 1024;
 
 type Tab = "overview" | "conversation" | "operations" | "tasks" | "card";
 type Status = "disconnected" | "connecting" | "connected" | "error";
@@ -71,9 +75,9 @@ export default function A2AWorkbench() {
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [status, setStatus] = useState<Status>("disconnected");
   const [error, setError] = useState("");
-  const [cardUrl, setCardUrl] = useState("http://localhost:3000/.well-known/agent-card.json");
-  const [timeoutMs, setTimeoutMs] = useState(60000);
-  const [diagnosticMode, setDiagnosticMode] = useState(true);
+  const [cardUrl, setCardUrl] = useState(isPublicDemo ? "" : "http://localhost:3000/.well-known/agent-card.json");
+  const [timeoutMs, setTimeoutMs] = useState(isPublicDemo ? 45_000 : 60_000);
+  const [diagnosticMode, setDiagnosticMode] = useState(!isPublicDemo);
   const [authType, setAuthType] = useState<AuthConfig["type"]>("none");
   const [authPrimary, setAuthPrimary] = useState("");
   const [authSecondary, setAuthSecondary] = useState("");
@@ -106,6 +110,7 @@ export default function A2AWorkbench() {
   useEffect(() => { transcriptRef.current?.scrollTo({ top: transcriptRef.current.scrollHeight, behavior: "smooth" }); }, [chat, events]);
 
   const auth = (): AuthConfig => {
+    if (isPublicDemo) return { type: "none" };
     if (authType === "bearer") return { type: "bearer", token: authPrimary };
     if (authType === "basic") return { type: "basic", username: authPrimary, password: authSecondary };
     if (authType === "apiKey") return { type: "apiKey", name: apiKeyName, value: authPrimary };
@@ -113,6 +118,7 @@ export default function A2AWorkbench() {
   };
 
   const headers = () => {
+    if (isPublicDemo) return {};
     let value: unknown;
     try { value = JSON.parse(headersText || "{}"); } catch { throw new Error("Custom headers must be valid JSON."); }
     if (!isObject(value) || Object.values(value).some((item) => typeof item !== "string")) throw new Error("Custom headers must be a JSON object with string values.");
@@ -240,11 +246,15 @@ export default function A2AWorkbench() {
     const selected = [...(event.target.files ?? [])];
     try {
       const loaded = await Promise.all(selected.map((file) => new Promise<Attachment>((resolve, reject) => {
-        if (file.size > 10 * 1024 * 1024) return reject(new Error(`${file.name} exceeds 10 MB.`));
+        const perFileLimit = isPublicDemo ? demoRawAttachmentLimit : 10 * 1024 * 1024;
+        if (file.size > perFileLimit) return reject(new Error(`${file.name} exceeds ${isPublicDemo ? "1 MB in the public demo" : "10 MB"}.`));
         const reader = new FileReader();
         reader.onload = () => resolve({ id: crypto.randomUUID(), name: file.name, mediaType: file.type || "application/octet-stream", raw: String(reader.result).split(",")[1] ?? "", size: file.size });
         reader.onerror = () => reject(reader.error); reader.readAsDataURL(file);
       })));
+      if (isPublicDemo && attachments.reduce((sum, file) => sum + file.size, 0) + loaded.reduce((sum, file) => sum + file.size, 0) > demoRawAttachmentLimit) {
+        throw new Error("The public demo accepts up to 1 MB of attached files per request.");
+      }
       setAttachments((current) => [...current, ...loaded]); setError("");
     } catch (cause) { setError(errorMessage(cause)); }
     finally { event.target.value = ""; }
@@ -276,7 +286,7 @@ export default function A2AWorkbench() {
         <button className="icon-button mobile-only" onClick={() => setMobileNav(true)} aria-label="Open connection panel"><Menu size={19} /></button>
         <div className="brand"><div className="brand-mark"><Zap size={18} /></div><div><strong>A2A Workbench</strong><span>Protocol test studio</span></div></div>
         <div className="topbar-center"><StatusBadge status={status} />{selectedInterface && <><span className="top-chip">{String(selectedInterface.protocolBinding)}</span><span className="top-chip">v{String(selectedInterface.protocolVersion)}</span></>}</div>
-        <div className="top-actions"><button className="icon-button" onClick={() => setTheme(theme === "light" ? "dark" : "light")} aria-label="Toggle theme">{theme === "light" ? <Moon size={17} /> : <Sun size={17} />}</button><button className={`icon-button ${inspectorOpen ? "active" : ""}`} onClick={() => setInspectorOpen(!inspectorOpen)} aria-label="Toggle event inspector"><TerminalSquare size={18} /><span className="log-count">{logs.length}</span></button></div>
+        <div className="top-actions">{isPublicDemo && <Link className="top-about" href="/">About</Link>}<button className="icon-button" onClick={() => setTheme(theme === "light" ? "dark" : "light")} aria-label="Toggle theme">{theme === "light" ? <Moon size={17} /> : <Sun size={17} />}</button><button className={`icon-button ${inspectorOpen ? "active" : ""}`} onClick={() => setInspectorOpen(!inspectorOpen)} aria-label="Toggle event inspector"><TerminalSquare size={18} /><span className="log-count">{logs.length}</span></button></div>
       </header>
 
       <div className="workbench-grid">
@@ -284,7 +294,7 @@ export default function A2AWorkbench() {
           <div className="panel-title"><div><PlugZap size={17} /><strong>Connection</strong></div><button className="icon-button mobile-only" onClick={() => setMobileNav(false)} aria-label="Close connection panel"><X size={18} /></button></div>
           <form onSubmit={connect} className="connection-form">
             <label>Agent Card URL<input value={cardUrl} onChange={(e) => setCardUrl(e.target.value)} placeholder="https://agent.example/.well-known/agent-card.json" spellCheck={false} /></label>
-            <details className="advanced"><summary><Settings2 size={15} /> Authentication & request</summary><div className="advanced-body">
+            {isPublicDemo ? <div className="demo-callout"><ShieldCheck size={15} /><span>Public-demo safety: HTTPS public agents only; no credentials, custom headers, gRPC, or push webhooks. Use a local install for those tests.</span></div> : <details className="advanced"><summary><Settings2 size={15} /> Authentication & request</summary><div className="advanced-body">
               <label>Authentication<select value={authType} onChange={(e) => { setAuthType(e.target.value as AuthConfig["type"]); setAuthPrimary(""); setAuthSecondary(""); }}><option value="none">None</option><option value="bearer">Bearer token</option><option value="apiKey">API key</option><option value="basic">Basic auth</option></select></label>
               {authType === "apiKey" && <label>Header name<input value={apiKeyName} onChange={(e) => setApiKeyName(e.target.value)} /></label>}
               {authType !== "none" && <label>{authType === "basic" ? "Username" : authType === "bearer" ? "Token" : "API key"}<input type={authType === "basic" ? "text" : "password"} value={authPrimary} onChange={(e) => setAuthPrimary(e.target.value)} autoComplete="off" /></label>}
@@ -292,11 +302,11 @@ export default function A2AWorkbench() {
               <label>Custom headers (JSON)<textarea rows={3} value={headersText} onChange={(e) => setHeadersText(e.target.value)} spellCheck={false} /></label>
               <label>Timeout <span>{Math.round(timeoutMs / 1000)}s</span><input type="range" min="5000" max="180000" step="5000" value={timeoutMs} onChange={(e) => setTimeoutMs(Number(e.target.value))} /></label>
               <label className="switch-label diagnostic-switch"><input type="checkbox" checked={diagnosticMode} onChange={(e) => setDiagnosticMode(e.target.checked)} /><span />Recover malformed legacy responses <small>Strict SDK validation still runs first.</small></label>
-            </div></details>
+            </div></details>}
             {status === "connected" ? <button type="button" className="button secondary wide" onClick={disconnect}><Unplug size={16} />Disconnect</button> : <button className="button primary wide" disabled={status === "connecting"}>{status === "connecting" ? <LoaderCircle className="spin" size={16} /> : <PlugZap size={16} />}Connect & inspect</button>}
           </form>
           {interfaces.length > 0 && <section className="interface-list"><div className="eyebrow">Advertised interfaces</div>{interfaces.map((item, index) => <button key={`${item.url}-${index}`} className={`interface-card ${index === interfaceIndex ? "active" : ""}`} onClick={() => setInterfaceIndex(index)}><span className="radio-dot">{index === interfaceIndex && <Check size={11} />}</span><span><strong>{String(item.protocolBinding)}</strong><small>{String(item.protocolVersion)} · {String(item.tenant || "default tenant")}</small><code>{String(item.url)}</code></span></button>)}</section>}
-          <div className="connection-foot"><ShieldCheck size={15} /><span>Credentials stay server-side and are redacted from logs. Private networks are allowed only in local development.</span></div>
+          <div className="connection-foot"><ShieldCheck size={15} /><span>{isPublicDemo ? "Demo requests are transient and restricted to public HTTPS agents. Nothing is stored as a Workbench session." : "Credentials stay server-side and are redacted from logs. Private networks are allowed only in local development."}</span></div>
         </aside>
 
         <section className="main-panel">
@@ -321,7 +331,7 @@ export default function A2AWorkbench() {
                 <div className="composer-actions"><div><label className="attach-button" title="Files are sent as A2A raw byte parts"><Paperclip size={16} /><span>Attach files</span><input type="file" multiple onChange={onFiles} /></label><span className="part-summary">{prompt.trim() ? `1 ${selectedComposerFormat.partKind}` : "0 editor"} · {attachments.length} raw</span><label className="switch-label" title={capabilities.streaming === true ? "Use streaming SendMessage" : "This Agent Card does not advertise streaming"}><input type="checkbox" checked={streaming} disabled={capabilities.streaming !== true} onChange={(e) => setStreaming(e.target.checked)} /><span />Stream</label></div>{busy ? <button type="button" className="button danger" onClick={() => abortRef.current?.abort()}><Square size={14} />Stop</button> : <button className="button primary" disabled={!prompt.trim() && !attachments.length}><Send size={15} />Send</button>}</div>
               </form>
             </section> :
-            tab === "operations" ? <Operations capabilities={capabilities} taskId={taskId} setTaskId={setTaskId} contextId={contextId} setContextId={setContextId} tenant={tenant} setTenant={setTenant} historyLength={historyLength} setHistoryLength={setHistoryLength} busy={busy} run={runOperation} resubscribe={resubscribe} result={operationResult} pushUrl={pushUrl} setPushUrl={setPushUrl} pushConfigId={pushConfigId} setPushConfigId={setPushConfigId} /> :
+            tab === "operations" ? <Operations publicDemo={isPublicDemo} capabilities={capabilities} taskId={taskId} setTaskId={setTaskId} contextId={contextId} setContextId={setContextId} tenant={tenant} setTenant={setTenant} historyLength={historyLength} setHistoryLength={setHistoryLength} busy={busy} run={runOperation} resubscribe={resubscribe} result={operationResult} pushUrl={pushUrl} setPushUrl={setPushUrl} pushConfigId={pushConfigId} setPushConfigId={setPushConfigId} /> :
             tab === "tasks" ? <Tasks tasks={tasks} onInspect={(id) => { setTaskId(id); setTab("operations"); }} /> :
             <CardCompliance discovery={discovery} copied={copied} onCopy={() => { navigator.clipboard.writeText(JSON.stringify(discovery.rawCard, null, 2)); setCopied(true); setTimeout(() => setCopied(false), 1400); }} />}
           </div>
@@ -342,16 +352,16 @@ function Overview({ discovery, capabilities, skills, selectedInterface, onNaviga
   return <div className="overview-page"><section className="agent-hero"><div className="agent-icon">{String(card.name ?? "A").slice(0, 2).toUpperCase()}</div><div><div className="eyebrow">Connected agent</div><h1>{String(card.name ?? "Unnamed agent")}</h1><p>{String(card.description ?? "No description supplied.")}</p><div className="chip-row"><span>Agent v{String(card.version ?? "—")}</span>{selectedInterface && <span>{String(selectedInterface.protocolBinding)} · A2A {String(selectedInterface.protocolVersion)}</span>}{Object.entries(capabilities).filter(([, value]) => value === true).map(([key]) => <span key={key}>{key}</span>)}</div></div></section><div className="overview-grid"><section className="overview-card compliance-summary"><header><div><ShieldCheck size={18} /><strong>Protocol readiness</strong></div><button className="text-button" onClick={() => onNavigate("card")}>View report</button></header><div className="score-layout"><ScoreRing score={discovery.report.score} /><div><strong>{discovery.report.counts.error === 0 ? "Ready to test" : "Card needs attention"}</strong><p>Detected A2A {discovery.report.version}</p><div className="issue-counts"><span className="error">{discovery.report.counts.error} errors</span><span className="warning">{discovery.report.counts.warning} warnings</span><span>{discovery.report.counts.info} notes</span></div></div></div></section><section className="overview-card"><header><div><Activity size={18} /><strong>Connection</strong></div><span className="latency"><Clock3 size={14} />{discovery.latencyMs} ms</span></header><dl className="fact-list"><div><dt>Binding</dt><dd>{String(selectedInterface?.protocolBinding ?? "—")}</dd></div><div><dt>Protocol</dt><dd>A2A {String(selectedInterface?.protocolVersion ?? discovery.report.version)}</dd></div><div><dt>Tenant</dt><dd>{String(selectedInterface?.tenant || "Default")}</dd></div><div><dt>Endpoint</dt><dd><code>{String(selectedInterface?.url ?? "—")}</code></dd></div></dl></section></div><section className="skills-section"><header><div><Zap size={18} /><div><strong>Agent skills</strong><p>Declared capabilities and interaction modes</p></div></div><span>{skills.length}</span></header><div className="skills-grid">{skills.map((skill, index) => <article key={String(skill.id ?? index)}><div className="skill-number">{String(index + 1).padStart(2, "0")}</div><h3>{String(skill.name ?? skill.id ?? "Unnamed skill")}</h3><p>{String(skill.description ?? "No description")}</p><div className="tag-row">{(Array.isArray(skill.tags) ? skill.tags : []).map((tag) => <span key={String(tag)}>{String(tag)}</span>)}</div></article>)}</div></section></div>;
 }
 
-interface OperationsProps { capabilities: JsonObject; taskId: string; setTaskId: (v: string) => void; contextId: string; setContextId: (v: string) => void; tenant: string; setTenant: (v: string) => void; historyLength: number; setHistoryLength: (v: number) => void; busy: boolean; run: (action: OperationAction, params?: Record<string, unknown>) => Promise<unknown>; resubscribe: () => void; result: unknown; pushUrl: string; setPushUrl: (v: string) => void; pushConfigId: string; setPushConfigId: (v: string) => void }
+interface OperationsProps { publicDemo: boolean; capabilities: JsonObject; taskId: string; setTaskId: (v: string) => void; contextId: string; setContextId: (v: string) => void; tenant: string; setTenant: (v: string) => void; historyLength: number; setHistoryLength: (v: number) => void; busy: boolean; run: (action: OperationAction, params?: Record<string, unknown>) => Promise<unknown>; resubscribe: () => void; result: unknown; pushUrl: string; setPushUrl: (v: string) => void; pushConfigId: string; setPushConfigId: (v: string) => void }
 function Operations(props: OperationsProps) {
   const canStream = props.capabilities.streaming === true;
-  const canPush = props.capabilities.pushNotifications === true;
+  const canPush = !props.publicDemo && props.capabilities.pushNotifications === true;
   const canExtendedCard = props.capabilities.extendedAgentCard === true;
   return <div className="operations-page">
     <div className="section-heading"><div><h1>Protocol operations</h1><p>Call individual A2A methods directly against the selected version and transport.</p></div>{props.busy && <span className="working-pill"><LoaderCircle className="spin" size={14} />Running</span>}</div>
     <section className="operation-notice"><TerminalSquare size={19} /><div><strong>What is this for?</strong><p>Conversation tests the normal user flow. Operations is the protocol console: inspect stored tasks, resume streams, test cancellation, fetch an extended card, and manage push webhooks. Task and context IDs are captured automatically after a conversation send, or you can paste IDs from another client.</p></div></section>
     <section className="operation-card"><header><ListTodo size={18} /><div><strong>Task lifecycle</strong><p>Inspect, enumerate, resume, or cancel server-side tasks.</p></div></header><div className="field-grid"><label>Task ID<input value={props.taskId} onChange={(e) => props.setTaskId(e.target.value)} placeholder="Captured automatically after send" /></label><label>Context ID<input value={props.contextId} onChange={(e) => props.setContextId(e.target.value)} placeholder="Optional ListTasks filter" /></label><label>Tenant<input value={props.tenant} onChange={(e) => props.setTenant(e.target.value)} placeholder="Optional" /></label><label>History length<input type="number" min="0" max="100" value={props.historyLength} onChange={(e) => props.setHistoryLength(Number(e.target.value))} /></label></div><div className="button-row"><button className="button secondary" title="Fetch the current task snapshot" disabled={!props.taskId || props.busy} onClick={() => props.run("getTask")}><RefreshCw size={15} />GetTask</button><button className="button secondary" title="List tasks, optionally filtered by context" disabled={props.busy} onClick={() => props.run("listTasks")}><ListTodo size={15} />ListTasks</button><button className="button secondary" title={canStream ? "Resume the event stream for this task" : "Streaming is not advertised by this agent"} disabled={!canStream || !props.taskId || props.busy} onClick={props.resubscribe}><Activity size={15} />SubscribeToTask</button><button className="button danger-quiet" title="Request cancellation; the task state determines whether it can be canceled" disabled={!props.taskId || props.busy} onClick={() => props.run("cancelTask")}><Square size={14} />CancelTask</button></div></section>
-    <section className="operation-card"><header><ShieldCheck size={18} /><div><strong>Agent and push configuration</strong><p>Test optional authenticated-card and webhook APIs advertised by the agent.</p></div></header><div className="button-row"><button className="button secondary" title={canExtendedCard ? "Fetch the authenticated extended Agent Card" : "Extended Agent Card is not advertised"} disabled={!canExtendedCard || props.busy} onClick={() => props.run("extendedCard")}><FileJson size={15} />GetExtendedAgentCard</button>{!canExtendedCard && <span className="capability-note">Not advertised</span>}</div><div className="divider" /><div className="field-grid"><label>Webhook URL<input disabled={!canPush} value={props.pushUrl} onChange={(e) => props.setPushUrl(e.target.value)} placeholder={canPush ? "https://receiver.example/a2a/events" : "Push notifications are not advertised"} /></label><label>Config ID<input disabled={!canPush} value={props.pushConfigId} onChange={(e) => props.setPushConfigId(e.target.value)} placeholder="Server-generated or existing" /></label></div><div className="button-row"><button className="button secondary" disabled={!canPush || !props.taskId || !props.pushUrl || props.busy} onClick={() => props.run("createPushConfig", { url: props.pushUrl, configId: props.pushConfigId })}>Create config</button><button className="button secondary" disabled={!canPush || !props.taskId || !props.pushConfigId || props.busy} onClick={() => props.run("getPushConfig", { configId: props.pushConfigId })}>Get config</button><button className="button secondary" disabled={!canPush || !props.taskId || props.busy} onClick={() => props.run("listPushConfigs")}>List configs</button><button className="button danger-quiet" disabled={!canPush || !props.taskId || !props.pushConfigId || props.busy} onClick={() => props.run("deletePushConfig", { configId: props.pushConfigId })}>Delete config</button>{!canPush && <span className="capability-note">Push notifications are not advertised by this Agent Card.</span>}</div></section>{props.result !== undefined && <section className="result-panel"><header><strong>Latest normalized response</strong></header><pre>{JSON.stringify(props.result, null, 2)}</pre></section>}
+    <section className="operation-card"><header><ShieldCheck size={18} /><div><strong>Agent and push configuration</strong><p>Test optional authenticated-card and webhook APIs advertised by the agent.</p></div></header><div className="button-row"><button className="button secondary" title={canExtendedCard ? "Fetch the authenticated extended Agent Card" : "Extended Agent Card is not advertised"} disabled={!canExtendedCard || props.busy} onClick={() => props.run("extendedCard")}><FileJson size={15} />GetExtendedAgentCard</button>{!canExtendedCard && <span className="capability-note">Not advertised</span>}</div>{props.publicDemo ? <p className="capability-note">Push webhook operations are available only in local Workbench because they ask an agent to call a third-party URL.</p> : <><div className="divider" /><div className="field-grid"><label>Webhook URL<input disabled={!canPush} value={props.pushUrl} onChange={(e) => props.setPushUrl(e.target.value)} placeholder={canPush ? "https://receiver.example/a2a/events" : "Push notifications are not advertised"} /></label><label>Config ID<input disabled={!canPush} value={props.pushConfigId} onChange={(e) => props.setPushConfigId(e.target.value)} placeholder="Server-generated or existing" /></label></div><div className="button-row"><button className="button secondary" disabled={!canPush || !props.taskId || !props.pushUrl || props.busy} onClick={() => props.run("createPushConfig", { url: props.pushUrl, configId: props.pushConfigId })}>Create config</button><button className="button secondary" disabled={!canPush || !props.taskId || !props.pushConfigId || props.busy} onClick={() => props.run("getPushConfig", { configId: props.pushConfigId })}>Get config</button><button className="button secondary" disabled={!canPush || !props.taskId || props.busy} onClick={() => props.run("listPushConfigs")}>List configs</button><button className="button danger-quiet" disabled={!canPush || !props.taskId || !props.pushConfigId || props.busy} onClick={() => props.run("deletePushConfig", { configId: props.pushConfigId })}>Delete config</button>{!canPush && <span className="capability-note">Push notifications are not advertised by this Agent Card.</span>}</div></>}</section>{props.result !== undefined && <section className="result-panel"><header><strong>Latest normalized response</strong></header><pre>{JSON.stringify(props.result, null, 2)}</pre></section>}
   </div>;
 }
 

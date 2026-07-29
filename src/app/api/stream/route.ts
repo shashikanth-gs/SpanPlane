@@ -1,16 +1,18 @@
 import { recoverMalformedLegacyResult, serializeStreamEvent, streamOperation, type OperationInput } from "@/lib/a2a-gateway";
 import type { WireEvent } from "@/lib/workbench-types";
+import { readJsonRequest } from "@/lib/request-guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 const encoder = new TextEncoder();
 const frame = (event: string, data: unknown) => encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 
 export async function POST(request: Request) {
   let input: OperationInput;
-  try { input = await request.json() as OperationInput; }
-  catch { return Response.json({ error: { message: "Invalid request JSON." } }, { status: 400 }); }
+  try { input = await readJsonRequest<OperationInput>(request); }
+  catch (error) { return Response.json({ error: { message: error instanceof Error ? error.message : "Invalid request JSON." } }, { status: 400, headers: { "Cache-Control": "no-store" } }); }
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       let telemetry: WireEvent[] = [];
@@ -40,7 +42,7 @@ export async function POST(request: Request) {
   return new Response(stream, {
     headers: {
       "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache, no-transform",
+      "Cache-Control": "no-store, no-transform",
       Connection: "keep-alive",
       "X-Accel-Buffering": "no",
     },
