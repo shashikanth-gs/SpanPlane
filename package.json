@@ -1,24 +1,82 @@
 {
-  "name": "a2a-endpoint-tester",
+  "name": "a2a-workbench",
   "version": "0.1.0",
-  "private": true,
+  "description": "A local-first A2A agent testing workbench for discovery, conversations, protocol operations, streaming, and content-aware artifacts.",
+  "homepage": "https://github.com/shashikanth-gs/a2a-workbench#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shashikanth-gs/a2a-workbench.git"
+  },
+  "bugs": {
+    "url": "https://github.com/shashikanth-gs/a2a-workbench/issues"
+  },
+  "license": "Apache-2.0",
+  "private": false,
+  "type": "module",
+  "bin": {
+    "a2a-workbench": "bin/a2a-workbench.mjs"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "next.config.mjs"
+  ],
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "keywords": [
+    "a2a",
+    "agent2agent",
+    "agent-testing",
+    "a2a-protocol",
+    "a2a-inspector",
+    "developer-tools",
+    "generative-ui"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3001",
     "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "start": "next start -p 3001",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "check": "npm run lint && npm run test && npm run build",
+    "package:prepare": "node scripts/prepare-npm-package.mjs",
+    "package:verify": "npm pack --dry-run --ignore-scripts",
+    "release:check": "node scripts/verify-release-version.mjs",
+    "prepack": "npm run build && npm run package:prepare",
+    "prepublishOnly": "npm run check && npm run release:check"
   },
   "dependencies": {
+    "@a2a-js/sdk": "^1.0.1",
+    "@bufbuild/protobuf": "^2.13.0",
+    "@grpc/grpc-js": "^1.14.4",
+    "lucide-react": "^1.27.0",
     "next": "16.2.12",
+    "postcss": "^8.5.24",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "sharp": "^0.35.3",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^9",
+    "@vitest/coverage-v8": "^4.1.10",
+    "eslint": "^9.39.5",
     "eslint-config-next": "16.2.12",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "postcss": "$postcss",
+    "sharp": "$sharp"
   }
 }
