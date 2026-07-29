@@ -1,8 +1,8 @@
 /** @type {import("next").NextConfig} */
 const nextConfig = {
-  // Keep production output separate from source and development artifacts so
-  // the npm package contains only the runnable application build.
-  distDir: "dist",
+  // The npm package uses `dist`; Vercel's Next.js builder expects the standard
+  // `.next` directory. Keep the deployment convention isolated from local use.
+  distDir: process.env.VERCEL ? ".next" : "dist",
   poweredByHeader: false,
   async headers() {
     const securityHeaders = [
