@@ -306,7 +306,7 @@ export default function A2AWorkbench() {
             {status === "connected" ? <button type="button" className="button secondary wide" onClick={disconnect}><Unplug size={16} />Disconnect</button> : <button className="button primary wide" disabled={status === "connecting"}>{status === "connecting" ? <LoaderCircle className="spin" size={16} /> : <PlugZap size={16} />}Connect & inspect</button>}
           </form>
           {interfaces.length > 0 && <section className="interface-list"><div className="eyebrow">Advertised interfaces</div>{interfaces.map((item, index) => <button key={`${item.url}-${index}`} className={`interface-card ${index === interfaceIndex ? "active" : ""}`} onClick={() => setInterfaceIndex(index)}><span className="radio-dot">{index === interfaceIndex && <Check size={11} />}</span><span><strong>{String(item.protocolBinding)}</strong><small>{String(item.protocolVersion)} · {String(item.tenant || "default tenant")}</small><code>{String(item.url)}</code></span></button>)}</section>}
-          <div className="connection-foot"><ShieldCheck size={15} /><span>{isPublicDemo ? "Demo requests are transient and restricted to public HTTPS agents. Nothing is stored as a Workbench session." : "Credentials stay server-side and are redacted from logs. Private networks are allowed only in local development."}</span></div>
+          <div className="connection-foot"><ShieldCheck size={15} /><span>{isPublicDemo ? "Demo requests are transient and restricted to public HTTPS agents. Nothing is stored as a Workbench session." : "Credentials stay server-side and are redacted from logs. Localhost and private development agents are allowed by default."}</span></div>
         </aside>
 
         <section className="main-panel">

@@ -140,7 +140,7 @@ For contribution standards, release configuration, security reporting, and proje
 
 ## Security and local use
 
-The Workbench is intended to run on your machine. It accepts credentials for the agent being tested, keeps them server-side, and redacts them from the event inspector. Keep the default `127.0.0.1` host unless you deliberately need LAN access. Review [SECURITY.md](SECURITY.md) before exposing it beyond a trusted development environment.
+The Workbench is intended to run on your machine. It accepts credentials for the agent being tested, keeps them server-side, and redacts them from the event inspector. Localhost and private development agents are allowed by default; keep the Workbench itself on the default `127.0.0.1` host unless you deliberately need LAN access. Review [SECURITY.md](SECURITY.md) before exposing it beyond a trusted development environment.
 
 ## License
 

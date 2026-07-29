@@ -31,8 +31,10 @@ function isPrivateAddress(address: string): boolean {
 }
 
 export function privateNetworksAllowed(): boolean {
-  return process.env.A2A_ALLOW_PRIVATE_NETWORKS === "true" ||
-    (process.env.A2A_ALLOW_PRIVATE_NETWORKS !== "false" && process.env.NODE_ENV !== "production");
+  // `npx a2a-workbench` uses `next start`, so NODE_ENV is production even
+  // though it is a loopback-only developer install. The public-demo flag,
+  // rather than NODE_ENV, is the actual network boundary.
+  return !isDemoDeployment() && process.env.A2A_ALLOW_PRIVATE_NETWORKS !== "false";
 }
 
 export async function assertSafeUrl(input: string): Promise<URL> {
