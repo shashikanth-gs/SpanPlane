@@ -31,11 +31,15 @@ npm install -g a2a-workbench
 a2a-workbench
 ```
 
-The Workbench listens on `http://127.0.0.1:3001` by default. Choose a different port or intentionally expose it on your network when needed:
+The Workbench listens on `http://127.0.0.1:3001` by default. The same command also prepares and starts a version-pinned local Phoenix process for OpenTelemetry. The Python environment and local evidence are kept in `.a2a-data` (or `A2A_DATA_DIR`), so the first run can take longer while Python packages are installed.
+
+If Phoenix cannot start in the default `auto` mode, the A2A and sideband explorer still starts and reports telemetry as unavailable. Use `--telemetry required` in automation when failure to start Phoenix should fail the command, or `--telemetry off` for the lightweight A2A-only process:
 
 ```bash
 a2a-workbench --port 4567
 a2a-workbench --hostname 0.0.0.0 --port 3001
+a2a-workbench --telemetry required
+a2a-workbench --telemetry off
 ```
 
 Open the displayed local URL, enter an agent’s `/.well-known/agent-card.json` URL, and select the interface you want to test. Node.js 20.9 or later is required.
@@ -59,13 +63,27 @@ It includes:
 - Resettable conversations with task/context continuation.
 - A protocol operations console for get, list, subscribe, cancel, extended-card, and push-configuration methods.
 - Task and artifact reduction across streamed status and artifact updates.
+- Negotiated sideband events with inline conversation context and a dedicated event explorer.
+- A managed or external Phoenix runtime with OTLP endpoints exposed to the local UI.
+- Append-only, credential-redacted A2A, sideband, runtime, and OTEL evidence contracts.
+- Session ZIP export with a chronological JSONL timeline and source-specific evidence files.
 - Credential-redacted request, response, and stream telemetry.
+
+## Evidence sources
+
+A2A is always the system of record: the Workbench captures what the agent actually sends—messages, tasks, updates, artifacts, and transport exchanges. Sideband and OpenTelemetry enrich that evidence when an agent supports them; neither is required for an agent to be testable.
+
+Sideband uses the A2A extension mechanism. The Workbench opts in only when an Agent Card advertises an extension URI it understands, uses the official SDK to transmit the version-correct extension service parameter, and reads extension data from A2A metadata. There is no official universal sideband-event schema today, so the included contract is explicitly provisional and its URI is configurable with `A2A_SIDEBAND_EXTENSION_URIS`. See [SIDEBAND.md](SIDEBAND.md).
+
+When managed Phoenix is running, point an agent's OTLP exporter to the HTTP or gRPC endpoint shown in the Workbench. No Phoenix project name is imposed. Correlation uses session, request, A2A context/task/message, and OTEL trace/span identifiers.
 
 ## Content-aware generative UI
 
-> Rendered, structured, and raw views for text, Markdown, JSON, tables, CSV, images, audio, video, PDFs, URLs, archives, and other binary content.
+> Rendered, structured, and feature-flagged raw views for text, Markdown, JSON, tables, CSV, images, audio, video, PDFs, URLs, archives, and other binary content.
 
 The Workbench reads each A2A part’s content discriminator, `mediaType`, filename, and compatible legacy metadata. It then selects a deterministic renderer—never model-based guessing.
+
+The same renderer is shared by messages, artifacts, and sideband events. Raw views are enabled for trusted local use by default and can be removed from the interface with `A2A_ENABLE_RAW_VIEWS=false`; capture and export remain separate concerns.
 
 | Returned agent content | Workbench view |
 | --- | --- |
@@ -137,6 +155,8 @@ For contribution standards, release configuration, security reporting, and proje
 - [SECURITY.md](SECURITY.md)
 - [CHANGELOG.md](CHANGELOG.md)
 - [REAL_AGENT_TEST_REPORT.md](REAL_AGENT_TEST_REPORT.md)
+- [ARCHITECTURE.md](ARCHITECTURE.md)
+- [SIDEBAND.md](SIDEBAND.md)
 
 ## Security and local use
 

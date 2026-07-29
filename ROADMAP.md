@@ -23,6 +23,9 @@ The developer preview currently provides:
 - Task/context continuation and resettable conversations
 - Task, subscription, cancellation, extended-card, and push-configuration operations
 - Event telemetry and streamed task/artifact assembly
+- Negotiated sideband events rendered inline and in a source-specific timeline
+- W3C trace-context propagation and managed or external Phoenix trace correlation
+- Append-only local evidence storage with selective A2A, sideband, OTEL, and runtime ZIP export
 - MIME-aware rendering for text, structured data, tabular data, documents, media, URLs, and binary downloads
 - Real-agent integration evidence across official JavaScript and Python samples
 - A deterministic protocol-rich travel scenario agent

@@ -20,6 +20,7 @@
 
 # production
 /build
+/.a2a-data/
 
 # misc
 .DS_Store

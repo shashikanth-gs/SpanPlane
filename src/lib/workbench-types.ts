@@ -51,6 +51,10 @@ export interface DiscoverResponse {
   report: ComplianceReport;
   telemetry: WireEvent[];
   latencyMs: number;
+  sideband?: {
+    advertisedUris: string[];
+    negotiatedUris: string[];
+  };
 }
 
 export type OperationAction =
@@ -71,6 +75,11 @@ export interface OperationResponse {
   protocolVersion: string;
   transport: string;
   diagnostics?: ComplianceIssue[];
+  sessionId?: string;
+  requestId?: string;
+  negotiatedExtensions?: string[];
+  sidebandEvents?: import("@/shared/evidence/types").SidebandEvent[];
+  traceId?: string;
 }
 
 export interface NormalizedPart {

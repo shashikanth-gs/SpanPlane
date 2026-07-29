@@ -1,0 +1,43 @@
+import { join, resolve } from "node:path";
+import type { RuntimePublicConfig } from "@/shared/evidence/types";
+
+// This is a provisional, implementation-neutral contract identifier, not an
+// official A2A extension URI. Deployments can replace it without code changes.
+const DEFAULT_SIDEBAND_URI = "urn:agent-observability:sideband-events:v1";
+
+function enabled(value: string | undefined, fallback: boolean) {
+  if (value === undefined) return fallback;
+  return !["0", "false", "off", "no"].includes(value.trim().toLowerCase());
+}
+
+export function sidebandExtensionUris() {
+  const configured = process.env.A2A_SIDEBAND_EXTENSION_URIS ?? process.env.A2A_SIDEBAND_EXTENSION_URI;
+  return [...new Set((configured ?? DEFAULT_SIDEBAND_URI).split(",").map((value) => value.trim()).filter(Boolean))];
+}
+
+export function dataDirectory() {
+  return process.env.A2A_DATA_DIR
+    ? resolve(process.env.A2A_DATA_DIR)
+    : join(/* turbopackIgnore: true */ process.cwd(), ".a2a-data");
+}
+
+export function runtimePublicConfig(): RuntimePublicConfig {
+  const provider = process.env.A2A_TELEMETRY_PROVIDER === "phoenix" ? "phoenix" : "none";
+  const managed = process.env.A2A_PHOENIX_MANAGED === "true";
+  const unavailable = process.env.A2A_TELEMETRY_STATUS === "unavailable";
+  return {
+    features: {
+      rawEvidenceViews: enabled(process.env.A2A_ENABLE_RAW_VIEWS, true),
+    },
+    sideband: {
+      extensionUris: sidebandExtensionUris(),
+    },
+    telemetry: {
+      provider,
+      status: provider === "none" ? (unavailable ? "unavailable" : "disabled") : managed ? "managed" : "external",
+      uiUrl: provider === "phoenix" ? process.env.A2A_PHOENIX_BASE_URL : undefined,
+      otlpHttpEndpoint: provider === "phoenix" ? process.env.A2A_OTLP_HTTP_ENDPOINT : undefined,
+      otlpGrpcEndpoint: provider === "phoenix" ? process.env.A2A_OTLP_GRPC_ENDPOINT : undefined,
+    },
+  };
+}

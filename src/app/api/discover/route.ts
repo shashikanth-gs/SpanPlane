@@ -18,6 +18,7 @@ export async function POST(request: Request) {
       report: discovery.report,
       telemetry: discovery.telemetry,
       latencyMs: discovery.latencyMs,
+      sideband: discovery.sideband,
     };
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

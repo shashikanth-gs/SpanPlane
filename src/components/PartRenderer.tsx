@@ -21,8 +21,9 @@ function CsvTable({ text }: { text: string }) {
   return <div className="table-scroll"><table><thead><tr>{rows[0].map((cell, i) => <th key={i}>{cell}</th>)}</tr></thead><tbody>{rows.slice(1).map((row, i) => <tr key={i}>{row.map((cell, j) => <td key={j}>{cell}</td>)}</tr>)}</tbody></table></div>;
 }
 
-export function PartRenderer({ part }: { part: NormalizedPart }) {
+export function PartRenderer({ part, allowRaw = false }: { part: NormalizedPart; allowRaw?: boolean }) {
   const [view, setView] = useState<View>("rendered");
+  const activeView = !allowRaw && view === "raw" ? "rendered" : view;
   const url = typeof window === "undefined" ? undefined : safeContentUrl(part);
   const mime = part.mediaType || "application/octet-stream";
   const text = typeof part.value === "string" ? part.value : JSON.stringify(part.value, null, 2);
@@ -33,15 +34,15 @@ export function PartRenderer({ part }: { part: NormalizedPart }) {
       <header className="part-toolbar">
         <div><span className="mime-badge">{mime}</span>{part.filename && <span className="part-filename">{part.filename}</span>}</div>
         <div className="segmented" aria-label="Content view">
-          <button className={view === "rendered" ? "active" : ""} onClick={() => setView("rendered")} title="Rendered"><Eye size={14} /></button>
-          {canStructure && <button className={view === "structured" ? "active" : ""} onClick={() => setView("structured")} title="Structured"><Table2 size={14} /></button>}
-          <button className={view === "raw" ? "active" : ""} onClick={() => setView("raw")} title="Raw"><Code2 size={14} /></button>
+          <button className={activeView === "rendered" ? "active" : ""} onClick={() => setView("rendered")} title="Rendered"><Eye size={14} /></button>
+          {canStructure && <button className={activeView === "structured" ? "active" : ""} onClick={() => setView("structured")} title="Structured"><Table2 size={14} /></button>}
+          {allowRaw && <button className={activeView === "raw" ? "active" : ""} onClick={() => setView("raw")} title="Raw"><Code2 size={14} /></button>}
         </div>
       </header>
       <div className="part-content">
-        {view === "raw" ? <pre className="code-block">{JSON.stringify(part, null, 2)}</pre> :
-          view === "structured" && isJson ? (isTabular(part.value) ? <DataTable rows={part.value} /> : <JsonTree value={part.value} />) :
-          view === "structured" && typeof part.value === "string" ? <CsvTable text={part.value} /> :
+        {activeView === "raw" ? <pre className="code-block">{JSON.stringify(part, null, 2)}</pre> :
+          activeView === "structured" && isJson ? (isTabular(part.value) ? <DataTable rows={part.value} /> : <JsonTree value={part.value} />) :
+          activeView === "structured" && typeof part.value === "string" ? <CsvTable text={part.value} /> :
           mime.startsWith("image/") && url ? <a href={url} target="_blank" rel="noreferrer">{/* Agent URLs and data URIs are intentionally not passed through Next's image proxy. */}<img className="media-image" src={url} alt={part.filename || "Agent-generated image"} /></a> : // eslint-disable-line @next/next/no-img-element
           mime.startsWith("audio/") && url ? <audio controls src={url} /> :
           mime.startsWith("video/") && url ? <video className="media-video" controls src={url} /> :
