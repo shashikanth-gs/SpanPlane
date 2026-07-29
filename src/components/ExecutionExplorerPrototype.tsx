@@ -6,18 +6,15 @@ import {
   Braces,
   Check,
   ChevronDown,
-  Circle,
-  Clock3,
   Copy,
-  Database,
+  Download,
   Eye,
   FileJson,
   FileText,
-  Gauge,
   Layers3,
   MessageSquare,
-  MoreHorizontal,
   Network,
+  PackageOpen,
   PanelRight,
   Play,
   Plus,
@@ -27,14 +24,15 @@ import {
   Settings2,
   Sparkles,
   Terminal,
+  Wrench,
   X,
   Zap,
 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import styles from "./ExecutionExplorerPrototype.module.css";
 
-type Scenario = "a2a" | "diagnostics" | "observed";
-type View = "conversation" | "execution" | "artifacts" | "diagnostics";
+type Scenario = "a2a" | "sideband" | "observed";
+type View = "conversation" | "execution" | "artifacts" | "sideband";
 type Source = "a2a" | "sideband" | "otel";
 type SourceFilter = "all" | Source;
 type ArtifactPart = "markdown" | "json" | "image" | "pdf";
@@ -52,9 +50,9 @@ type TimelineEvent = {
 };
 
 const scenarios: Record<Scenario, { label: string; summary: string }> = {
-  a2a: { label: "A2A only", summary: "No instrumentation required" },
-  diagnostics: { label: "+ diagnostics", summary: "Sideband events available" },
-  observed: { label: "+ traces", summary: "Phoenix receives OTEL" },
+  a2a: { label: "A2A only", summary: "No optional signals" },
+  sideband: { label: "+ Sideband", summary: "Agent events available" },
+  observed: { label: "+ OTEL", summary: "Phoenix receives traces" },
 };
 
 const baseEvents: TimelineEvent[] = [
@@ -95,19 +93,29 @@ const baseEvents: TimelineEvent[] = [
     id: "progress",
     at: "14:32:08.194",
     duration: "640 ms",
-    title: "Planning itinerary",
-    detail: "progress · 2 of 4 days",
+    title: "Progress update",
+    detail: "progress.updated · current 2 / total 4",
     source: "sideband",
     tone: "working",
     kind: "dev.a2a.workbench/progress",
     raw: { type: "dev.a2a.workbench/progress", version: "1", taskId: "task_7b1f", progress: { current: 2, total: 4, unit: "days", message: "Optimizing travel time" } },
   },
   {
+    id: "tool-started",
+    at: "14:32:08.356",
+    title: "Tool started",
+    detail: "tool.started · places.search",
+    source: "sideband",
+    tone: "working",
+    kind: "dev.a2a.workbench/tool-started",
+    raw: { type: "dev.a2a.workbench/tool-started", version: "1", taskId: "task_7b1f", tool: { name: "places.search", callId: "call_9fa", arguments: { query: "food markets" } } },
+  },
+  {
     id: "tool",
     at: "14:32:08.413",
     duration: "318 ms",
-    title: "Search places",
-    detail: "tool · places.search",
+    title: "Tool completed",
+    detail: "tool.completed · places.search",
     source: "sideband",
     tone: "success",
     kind: "tool.completed",
@@ -163,20 +171,11 @@ const viewLabels: Array<{ id: View; label: string; icon: typeof MessageSquare }>
   { id: "conversation", label: "Conversation", icon: MessageSquare },
   { id: "execution", label: "Execution", icon: Activity },
   { id: "artifacts", label: "Artifacts", icon: Layers3 },
-  { id: "diagnostics", label: "Diagnostics", icon: Gauge },
+  { id: "sideband", label: "Sideband", icon: Zap },
 ];
 
 function SourceBadge({ source }: { source: Source }) {
-  return <span className={`${styles.sourceBadge} ${styles[source]}`}>{source === "sideband" ? "DIAG" : source.toUpperCase()}</span>;
-}
-
-function Capability({ state, label, detail }: { state: "required" | "active" | "off"; label: string; detail: string }) {
-  return (
-    <div className={`${styles.capability} ${styles[state]}`}>
-      <span className={styles.capabilityIcon}>{state === "active" || state === "required" ? <Check size={13} /> : <Circle size={10} />}</span>
-      <span><strong>{label}</strong><small>{detail}</small></span>
-    </div>
-  );
+  return <span className={`${styles.sourceBadge} ${styles[source]}`}>{source === "sideband" ? "SIDEBAND" : source.toUpperCase()}</span>;
 }
 
 export function ExecutionExplorerPrototype() {
@@ -185,6 +184,8 @@ export function ExecutionExplorerPrototype() {
   const [selectedEventId, setSelectedEventId] = useState("llm-span");
   const [detailOpen, setDetailOpen] = useState(true);
   const [setupOpen, setSetupOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportSelection, setExportSelection] = useState({ a2a: true, artifacts: true, sideband: true, otel: true, timeline: true });
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [artifactPart, setArtifactPart] = useState<ArtifactPart>("markdown");
   const [artifactRaw, setArtifactRaw] = useState(false);
@@ -196,7 +197,7 @@ export function ExecutionExplorerPrototype() {
 
   const events = useMemo(() => baseEvents.filter((event) => {
     if (scenario === "a2a") return event.source === "a2a";
-    if (scenario === "diagnostics") return event.source !== "otel";
+    if (scenario === "sideband") return event.source !== "otel";
     return true;
   }), [scenario]);
   const visibleEvents = sourceFilter === "all" ? events : events.filter((event) => event.source === sourceFilter);
@@ -208,7 +209,7 @@ export function ExecutionExplorerPrototype() {
   function chooseScenario(next: Scenario) {
     setScenario(next);
     if (next === "a2a" && sourceFilter !== "a2a") setSourceFilter("all");
-    if (next === "diagnostics" && sourceFilter === "otel") setSourceFilter("all");
+    if (next === "sideband" && sourceFilter === "otel") setSourceFilter("all");
     if (next !== "observed" && selectedEvent?.source === "otel") setSelectedEventId("working");
     if (next === "a2a" && selectedEvent?.source === "sideband") setSelectedEventId("working");
   }
@@ -229,6 +230,47 @@ export function ExecutionExplorerPrototype() {
     setTimeout(() => setCopied(false), 1400);
   }
 
+  async function exportSession() {
+    const { strToU8, zipSync } = await import("fflate");
+    const files: Record<string, Uint8Array> = {};
+    const selectedEvents = baseEvents.filter((event) => (
+      (event.source === "a2a" && exportSelection.a2a)
+      || (event.source === "sideband" && exportSelection.sideband)
+      || (event.source === "otel" && exportSelection.otel)
+    ));
+
+    files["manifest.json"] = strToU8(JSON.stringify({
+      format: "a2a-workbench-session",
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      contextId: "ctx_241f",
+      taskId: "task_7b1f",
+      included: exportSelection,
+      timelineOrder: selectedEvents.map((event) => ({ id: event.id, source: event.source, timestamp: event.at })),
+    }, null, 2));
+    if (exportSelection.a2a) files["a2a/raw-events.json"] = strToU8(JSON.stringify(baseEvents.filter((event) => event.source === "a2a"), null, 2));
+    if (exportSelection.sideband) files["sideband/raw-events.json"] = strToU8(JSON.stringify(baseEvents.filter((event) => event.source === "sideband"), null, 2));
+    if (exportSelection.otel) files["otel/spans.json"] = strToU8(JSON.stringify(baseEvents.filter((event) => event.source === "otel"), null, 2));
+    if (exportSelection.timeline) files["timeline/events.json"] = strToU8(JSON.stringify(selectedEvents, null, 2));
+    if (exportSelection.artifacts) {
+      files["artifacts/itinerary.md"] = strToU8("# A slower food journey through Kyoto\n\nMock artifact content from the agent response.\n");
+      files["artifacts/route.json"] = strToU8(JSON.stringify({ city: "Kyoto", days: 4, artifactId: "artifact_plan" }, null, 2));
+      files["artifacts/manifest.json"] = strToU8(JSON.stringify({ note: "A real export preserves every artifact part with its original bytes and MIME type.", parts: ["itinerary.md", "route.json", "kyoto-map.png", "trip-plan.pdf"] }, null, 2));
+    }
+
+    const archive = zipSync(files, { level: 6 });
+    const blob = new Blob([archive], { type: "application/zip" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "a2a-workbench-ctx_241f.zip";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setExportOpen(false);
+  }
+
   return (
     <main className={styles.shell}>
       <header className={styles.topbar}>
@@ -244,6 +286,7 @@ export function ExecutionExplorerPrototype() {
         <div className={styles.topActions}>
           <button className={styles.iconButton} aria-label="Search session"><Search size={16} /></button>
           <button className={styles.iconButton} aria-label="Open setup" onClick={() => setSetupOpen(true)}><Settings2 size={16} /></button>
+          <button className={styles.secondaryButton} onClick={() => setExportOpen(true)}><Download size={15} /> Export</button>
           <button className={styles.primaryButton} onClick={() => setSetupOpen(true)}><Plus size={15} /> New session</button>
         </div>
       </header>
@@ -254,12 +297,7 @@ export function ExecutionExplorerPrototype() {
           <code>ctx_241f</code>
           <ChevronDown size={13} />
         </div>
-        <div className={styles.capabilityStrip}>
-          <Capability state="required" label="A2A" detail="v1.0 · JSON-RPC" />
-          <Capability state={sidebandActive ? "active" : "off"} label="Diagnostics" detail={sidebandActive ? "extension active" : "not advertised"} />
-          <Capability state={otelActive ? "active" : "off"} label="Traces" detail={otelActive ? "Phoenix · receiving" : "not connected"} />
-        </div>
-        <button className={styles.sessionAction} aria-label="Session actions"><MoreHorizontal size={17} /></button>
+        <div className={styles.contextMeta}><span><i /> Task completed</span><code>task_7b1f</code></div>
       </section>
 
       <div className={styles.workspace}>
@@ -268,26 +306,27 @@ export function ExecutionExplorerPrototype() {
           <nav className={styles.navigation} aria-label="Session views">
             {viewLabels.map((item) => {
               const Icon = item.icon;
-              const unavailable = item.id === "diagnostics" && scenario === "a2a";
+              const unavailable = item.id === "sideband" && scenario === "a2a";
               return (
                 <button key={item.id} className={view === item.id ? styles.activeNav : ""} onClick={() => setView(item.id)}>
                   <Icon size={15} /><span>{item.label}</span>
                   {item.id === "artifacts" && <em>4</em>}
-                  {item.id === "diagnostics" && <small>{unavailable ? "optional" : "3"}</small>}
+                  {item.id === "sideband" && <small>{unavailable ? "optional" : "3"}</small>}
                 </button>
               );
             })}
           </nav>
           <div className={styles.sidebarSection}>
-            <span>Capture</span>
-            <div className={styles.captureCard}>
-              <div><Radio size={14} /><strong>Recording</strong><i /></div>
-              <small>9 protocol events · {otelActive ? "4 spans" : "no spans"}</small>
-              <div className={styles.captureTime}><Clock3 size={12} /> 00:01:42</div>
+            <span>Evidence sources</span>
+            <div className={styles.sourceList}>
+              <div><i className={styles.a2aDot} /><span><strong>A2A</strong><small>Connected · v1.0</small></span><em>Required</em></div>
+              <div className={!sidebandActive ? styles.sourceOff : ""}><i className={styles.sidebandDot} /><span><strong>Sideband events</strong><small>{sidebandActive ? "3 events received" : "Not advertised"}</small></span><em>Optional</em></div>
+              <div className={!otelActive ? styles.sourceOff : ""}><i className={styles.otelDot} /><span><strong>OpenTelemetry</strong><small>{otelActive ? "4 spans via Phoenix" : "Not connected"}</small></span><em>Optional</em></div>
             </div>
+            <button className={styles.exportButton} onClick={() => setExportOpen(true)}><Download size={15} /><span><strong>Export session</strong><small>Choose evidence and download ZIP</small></span></button>
           </div>
           <div className={styles.sidebarSection}>
-            <span>Try the experience</span>
+            <span>Preview signal states</span>
             <div className={styles.scenarioPicker}>
               {(Object.keys(scenarios) as Scenario[]).map((key) => (
                 <button key={key} className={scenario === key ? styles.activeScenario : ""} onClick={() => chooseScenario(key)}>
@@ -321,6 +360,16 @@ export function ExecutionExplorerPrototype() {
                     <div className={styles.messageMeta}><strong>Kyoto Travel Planner</strong><SourceBadge source="a2a" /><time>14:32:09</time></div>
                     <div className={styles.agentAnswer}>
                       <p>I built a four-day route that keeps travel compact and leaves Thursday afternoon open.</p>
+                      {sidebandActive && (
+                        <section className={styles.conversationEvents}>
+                          <header><div><SourceBadge source="sideband" /><strong>Events received during this response</strong></div><button onClick={() => setView("sideband")}>View all</button></header>
+                          <div className={styles.conversationEventRows}>
+                            <button onClick={() => { setView("execution"); setSelectedEventId("progress"); setDetailOpen(true); }}><Zap size={14} /><span><strong>Progress update</strong><small>current 2 · total 4</small></span><time>14:32:08.194</time></button>
+                            <button onClick={() => { setView("execution"); setSelectedEventId("tool-started"); setDetailOpen(true); }}><Wrench size={14} /><span><strong>Tool started</strong><small>places.search · call_9fa</small></span><time>14:32:08.356</time></button>
+                            <button onClick={() => { setView("execution"); setSelectedEventId("tool"); setDetailOpen(true); }}><Check size={14} /><span><strong>Tool completed</strong><small>places.search · 318 ms</small></span><time>14:32:08.413</time></button>
+                          </div>
+                        </section>
+                      )}
                       <div className={styles.itineraryGrid}>
                         <article><span>01</span><div><strong>Nishiki & Pontocho</strong><small>Market breakfast · tea tasting · riverside dinner</small></div><em>Mon</em></article>
                         <article><span>02</span><div><strong>Arashiyama</strong><small>Tofu lunch · bamboo grove · kaiseki</small></div><em>Tue</em></article>
@@ -329,7 +378,6 @@ export function ExecutionExplorerPrototype() {
                       </div>
                       <button className={styles.artifactLink} onClick={() => setView("artifacts")}><FileText size={14} /><span><strong>Kyoto food itinerary</strong><small>4 parts · Markdown, JSON, image, PDF</small></span><Eye size={14} /></button>
                     </div>
-                    {sidebandActive && <div className={styles.inlineEvidence}><SourceBadge source="sideband" /><span>3 diagnostic events</span><button onClick={() => setView("diagnostics")}>Inspect</button></div>}
                     {otelActive && <div className={styles.inlineEvidence}><SourceBadge source="otel" /><span>Trace correlated by <code>a2a.task.id</code></span><button onClick={() => setView("execution")}>Open trace</button></div>}
                   </div>
                 </div>
@@ -363,10 +411,10 @@ export function ExecutionExplorerPrototype() {
               <div className={styles.metrics}>
                 <article><span>End-to-end</span><strong>1.46 <small>s</small></strong><em>message → completed</em></article>
                 <article><span>A2A events</span><strong>5</strong><em>protocol evidence</em></article>
-                <article><span>Diagnostic events</span><strong>{sidebandActive ? "2" : "—"}</strong><em>{sidebandActive ? "optional extension" : "not provided"}</em></article>
-                <article><span>Trace spans</span><strong>{otelActive ? "4" : "—"}</strong><em>{otelActive ? "exact correlation" : "not connected"}</em></article>
+                <article><span>Sideband events</span><strong>{sidebandActive ? "3" : "—"}</strong><em>{sidebandActive ? "agent-provided" : "not provided"}</em></article>
+                <article><span>OTEL spans</span><strong>{otelActive ? "4" : "—"}</strong><em>{otelActive ? "exact correlation" : "not connected"}</em></article>
               </div>
-              <div className={styles.timelineToolbar}><div><button className={sourceFilter === "all" ? styles.activeFilter : ""} onClick={() => setSourceFilter("all")}>All</button><button className={sourceFilter === "a2a" ? styles.activeFilter : ""} onClick={() => setSourceFilter("a2a")}>A2A</button><button className={sourceFilter === "sideband" ? styles.activeFilter : ""} onClick={() => setSourceFilter("sideband")} disabled={!sidebandActive}>Diagnostics</button><button className={sourceFilter === "otel" ? styles.activeFilter : ""} onClick={() => setSourceFilter("otel")} disabled={!otelActive}>Traces</button></div><button><Search size={14} /> Filter events</button></div>
+              <div className={styles.timelineToolbar}><div><button className={sourceFilter === "all" ? styles.activeFilter : ""} onClick={() => setSourceFilter("all")}>All</button><button className={sourceFilter === "a2a" ? styles.activeFilter : ""} onClick={() => setSourceFilter("a2a")}>A2A</button><button className={sourceFilter === "sideband" ? styles.activeFilter : ""} onClick={() => setSourceFilter("sideband")} disabled={!sidebandActive}>Sideband</button><button className={sourceFilter === "otel" ? styles.activeFilter : ""} onClick={() => setSourceFilter("otel")} disabled={!otelActive}>OTEL</button></div><button><Search size={14} /> Filter events</button></div>
               <div className={styles.timeline}>
                 {visibleEvents.map((event) => (
                   <button key={event.id} className={`${styles.timelineRow} ${selectedEvent?.id === event.id ? styles.selectedTimeline : ""}`} onClick={() => { setSelectedEventId(event.id); setDetailOpen(true); }}>
@@ -407,22 +455,38 @@ export function ExecutionExplorerPrototype() {
             </div>
           )}
 
-          {view === "diagnostics" && (
-            <div className={styles.diagnosticsView}>
+          {view === "sideband" && (
+            <div className={styles.sidebandView}>
               <header className={styles.viewHeader}>
-                <div><span className={styles.viewIcon}><Gauge size={16} /></span><span><strong>Diagnostics</strong><small>Optional signals explained, never assumed</small></span></div>
+                <div><span className={styles.viewIcon}><Zap size={16} /></span><span><strong>Sideband events</strong><small>Optional events emitted by the agent alongside A2A</small></span></div>
                 <button className={styles.secondaryButton} onClick={() => setSetupOpen(true)}><Settings2 size={14} /> Configure</button>
               </header>
               {scenario === "a2a" ? (
-                <div className={styles.optionalEmpty}><span><Gauge size={24} /></span><h2>This agent did not advertise diagnostic events</h2><p>Nothing is broken. Conversation, tasks, streaming, and artifacts remain fully inspectable from standard A2A evidence.</p><button onClick={() => chooseScenario("diagnostics")}>Preview with diagnostics</button></div>
+                <div className={styles.optionalEmpty}><span><Zap size={24} /></span><h2>No sideband event extension advertised</h2><p>This session still contains the complete A2A conversation, task updates, streaming events, and artifacts. Sideband events are optional agent-provided context.</p><button onClick={() => chooseScenario("sideband")}>Preview sideband events</button></div>
               ) : (
-                <div className={styles.diagnosticsContent}>
-                  <div className={styles.healthBanner}><Check size={16} /><span><strong>Healthy execution</strong><small>No protocol errors, retries, or policy blocks detected.</small></span><em>3 insights</em></div>
-                  <div className={styles.diagnosticGrid}>
-                    <article><header><Zap size={15} /><span><strong>Progress</strong><small>Sideband · advertised extension</small></span><em>complete</em></header><div className={styles.progressBar}><i /></div><p>4 of 4 itinerary days planned</p></article>
-                    <article><header><Terminal size={15} /><span><strong>Tool activity</strong><small>Sideband · 1 invocation</small></span><em>318 ms</em></header><dl><div><dt>places.search</dt><dd>18 results</dd></div><div><dt>Status</dt><dd>completed</dd></div></dl></article>
-                    <article><header><Database size={15} /><span><strong>AI usage</strong><small>{otelActive ? "OTEL · GenAI semantics" : "Telemetry unavailable"}</small></span><em>{otelActive ? "$0.0031" : "—"}</em></header>{otelActive ? <dl><div><dt>Input</dt><dd>1,260 tokens</dd></div><div><dt>Output</dt><dd>582 tokens</dd></div></dl> : <p>Point the agent&apos;s OTLP exporter at the Workbench receiver to see model usage.</p>}</article>
-                    <article><header><Network size={15} /><span><strong>Correlation</strong><small>{otelActive ? "Exact · task attribute" : "A2A only"}</small></span><em className={otelActive ? styles.confident : ""}>{otelActive ? "100%" : "—"}</em></header><p>{otelActive ? <><code>a2a.task.id</code> matched 4 spans to this execution.</> : <>No trace was attached. Protocol events are still ordered by their A2A timestamps.</>}</p></article>
+                <div className={styles.sidebandContent}>
+                  <div className={styles.evidenceSummary}>
+                    <div><strong>3</strong><span>Events received</span></div>
+                    <div><strong>1</strong><span>Progress update</span></div>
+                    <div><strong>1</strong><span>Tool invocation</span></div>
+                    <p>Raw agent-provided extension evidence, organized without changing or interpreting the payload.</p>
+                  </div>
+                  <section className={styles.sidebandStream}>
+                    <header><div><Zap size={16} /><span><strong>Event stream</strong><small>Ordered using the original event timestamps</small></span></div><SourceBadge source="sideband" /></header>
+                    <button onClick={() => { setView("execution"); setSelectedEventId("progress"); setDetailOpen(true); }}><time>14:32:08.194</time><span><strong>dev.a2a.workbench/progress</strong><small>current: 2 · total: 4 · unit: days</small></span><code>task_7b1f</code></button>
+                    <button onClick={() => { setView("execution"); setSelectedEventId("tool-started"); setDetailOpen(true); }}><time>14:32:08.356</time><span><strong>dev.a2a.workbench/tool-started</strong><small>places.search · callId: call_9fa</small></span><code>task_7b1f</code></button>
+                    <button onClick={() => { setView("execution"); setSelectedEventId("tool"); setDetailOpen(true); }}><time>14:32:08.413</time><span><strong>dev.a2a.workbench/tool-completed</strong><small>places.search · status: ok · duration: 318 ms</small></span><code>task_7b1f</code></button>
+                  </section>
+                  <div className={styles.sidebandLowerGrid}>
+                    <section className={styles.toolPanel}>
+                      <header><Wrench size={16} /><span><strong>Tool calls</strong><small>Derived only from tool sideband events</small></span></header>
+                      <div className={styles.toolCall}><span className={styles.toolIcon}><Terminal size={16} /></span><span><strong>places.search</strong><small>call_9fa · started 14:32:08.356</small></span><div><strong>completed</strong><small>318 ms</small></div></div>
+                      <dl><div><dt>Arguments</dt><dd><code>{'{ "query": "food markets" }'}</code></dd></div><div><dt>Observed result</dt><dd>18 results</dd></div></dl>
+                    </section>
+                    <section className={styles.otelPanel}>
+                      <header><Network size={16} /><span><strong>OpenTelemetry enrichment</strong><small>{otelActive ? "Correlated trace data" : "No OTEL data received"}</small></span></header>
+                      {otelActive ? <><div className={styles.otelFacts}><div><span>Token usage</span><strong>1,842</strong></div><div><span>Correlation</span><strong>Exact</strong></div></div><p><code>a2a.task.id</code> matched the trace to this task. Usage comes from GenAI semantic attributes.</p></> : <p>Point an OTLP exporter at the Workbench receiver to add spans and AI usage data.</p>}
+                    </section>
                   </div>
                 </div>
               )}
@@ -449,10 +513,40 @@ export function ExecutionExplorerPrototype() {
             <header><div><span className={styles.viewIcon}><Network size={17} /></span><span><strong id="setup-title">New agent session</strong><small>Start with A2A. Add richer signals only when available.</small></span></div><button aria-label="Close setup" onClick={() => setSetupOpen(false)}><X size={17} /></button></header>
             <div className={styles.setupBody}>
               <section className={styles.setupStep}><span className={styles.stepNumber}>1</span><div><div className={styles.stepTitle}><span><strong>Connect the agent</strong><small>Required · standard A2A</small></span><span className={styles.requiredPill}>Required</span></div><label>Agent Card URL<input defaultValue="http://localhost:4123/.well-known/agent-card.json" /></label><div className={styles.detected}><Check size={14} /><span><strong>Kyoto Travel Planner detected</strong><small>A2A v1.0 · JSON-RPC · streaming · 3 skills</small></span></div></div></section>
-              <section className={styles.setupStep}><span className={styles.stepNumber}>2</span><div><div className={styles.stepTitle}><span><strong>Diagnostic events</strong><small>Optional · sent through an advertised A2A extension</small></span><span className={styles.optionalPill}>Optional</span></div><div className={styles.extensionRow}><span><Activity size={15} /><span><strong>Workbench diagnostics v1</strong><small>{sidebandActive ? "Advertised by this agent" : "Not advertised by this agent"}</small></span></span><button className={sidebandActive ? styles.toggleOn : styles.toggleOff} onClick={() => chooseScenario(sidebandActive ? "a2a" : "diagnostics")}><i /></button></div></div></section>
-              <section className={styles.setupStep}><span className={styles.stepNumber}>3</span><div><div className={styles.stepTitle}><span><strong>Distributed traces</strong><small>Optional · point your existing OTEL exporter here</small></span><span className={styles.optionalPill}>Optional</span></div><div className={styles.phoenixCard}><div><span className={styles.phoenixLogo}><Sparkles size={15} /></span><span><strong>Embedded Phoenix</strong><small>{otelActive ? "Collector is running and receiving spans" : "Start a local collector for this session"}</small></span><button className={otelActive ? styles.stopButton : styles.startButton} onClick={() => chooseScenario(otelActive ? (sidebandActive ? "diagnostics" : "a2a") : "observed")}>{otelActive ? "Stop" : <><Play size={12} /> Start</>}</button></div>{otelActive && <div className={styles.endpointBox}><span><i /> OTLP/HTTP endpoint</span><code>http://127.0.0.1:6006/v1/traces</code><button onClick={copyEndpoint}>{copied ? <Check size={14} /> : <Copy size={14} />} {copied ? "Copied" : "Copy"}</button></div>}</div><p className={styles.setupHint}>Your agent stays independent. Workbench only receives the telemetry it exports; Phoenix remains replaceable with another trace provider.</p></div></section>
+              <section className={styles.setupStep}><span className={styles.stepNumber}>2</span><div><div className={styles.stepTitle}><span><strong>Sideband events</strong><small>Optional · sent through an advertised A2A extension</small></span><span className={styles.optionalPill}>Optional</span></div><div className={styles.extensionRow}><span><Activity size={15} /><span><strong>Workbench sideband events v1</strong><small>{sidebandActive ? "Advertised by this agent" : "Not advertised by this agent"}</small></span></span><button aria-label="Toggle sideband events" className={sidebandActive ? styles.toggleOn : styles.toggleOff} onClick={() => chooseScenario(sidebandActive ? "a2a" : "sideband")}><i /></button></div></div></section>
+              <section className={styles.setupStep}><span className={styles.stepNumber}>3</span><div><div className={styles.stepTitle}><span><strong>OpenTelemetry</strong><small>Optional · point your existing OTLP exporter here</small></span><span className={styles.optionalPill}>Optional</span></div><div className={styles.phoenixCard}><div><span className={styles.phoenixLogo}><Sparkles size={15} /></span><span><strong>Embedded Phoenix</strong><small>{otelActive ? "Collector is running and receiving spans" : "Start a local collector for this session"}</small></span><button className={otelActive ? styles.stopButton : styles.startButton} onClick={() => chooseScenario(otelActive ? (sidebandActive ? "sideband" : "a2a") : "observed")}>{otelActive ? "Stop" : <><Play size={12} /> Start</>}</button></div>{otelActive && <div className={styles.endpointBox}><span><i /> OTLP/HTTP endpoint</span><code>http://127.0.0.1:6006/v1/traces</code><button onClick={copyEndpoint}>{copied ? <Check size={14} /> : <Copy size={14} />} {copied ? "Copied" : "Copy"}</button></div>}</div><p className={styles.setupHint}>Your agent stays independent. Workbench only receives the telemetry it exports; Phoenix remains replaceable with another trace provider.</p></div></section>
             </div>
             <footer><span><Check size={14} /> Ready to capture standard A2A events</span><button className={styles.secondaryButton} onClick={() => setSetupOpen(false)}>Cancel</button><button className={styles.primaryButton} onClick={() => setSetupOpen(false)}>Start session</button></footer>
+          </section>
+        </div>
+      )}
+
+      {exportOpen && (
+        <div className={styles.modalBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setExportOpen(false); }}>
+          <section className={`${styles.setupModal} ${styles.exportModal}`} role="dialog" aria-modal="true" aria-labelledby="export-title">
+            <header><div><span className={styles.viewIcon}><PackageOpen size={17} /></span><span><strong id="export-title">Export session evidence</strong><small>Create a portable ZIP containing the original data and timeline.</small></span></div><button aria-label="Close export" onClick={() => setExportOpen(false)}><X size={17} /></button></header>
+            <div className={styles.exportBody}>
+              <div className={styles.exportIntro}><span><strong>Kyoto food itinerary</strong><code>ctx_241f · task_7b1f</code></span><em>ZIP archive</em></div>
+              <p>Select what to include. Every selected source is exported without changing its original payload, and the manifest records the combined event order.</p>
+              <div className={styles.exportOptions}>
+                {([
+                  ["a2a", "A2A protocol evidence", "Raw messages, task updates, streaming events and metadata", "5 events"],
+                  ["artifacts", "Agent artifacts", "Original parts, filenames, MIME types and artifact metadata", "4 parts"],
+                  ["sideband", "Sideband events", "Progress, tools and any other agent-provided extension events", sidebandActive ? "3 events" : "Not available"],
+                  ["otel", "OpenTelemetry data", "Spans, attributes, resource data and GenAI usage fields", otelActive ? "4 spans" : "Not available"],
+                  ["timeline", "Combined timeline", "Ordered index linking all selected evidence by task and context", "JSON"],
+                ] as const).map(([key, label, description, count]) => (
+                  <label key={key} className={(key === "sideband" && !sidebandActive) || (key === "otel" && !otelActive) ? styles.exportUnavailable : ""}>
+                    <input type="checkbox" checked={exportSelection[key]} disabled={(key === "sideband" && !sidebandActive) || (key === "otel" && !otelActive)} onChange={(event) => setExportSelection((current) => ({ ...current, [key]: event.target.checked }))} />
+                    <span className={styles.exportCheck}><Check size={13} /></span>
+                    <span><strong>{label}</strong><small>{description}</small></span>
+                    <em>{count}</em>
+                  </label>
+                ))}
+              </div>
+              <div className={styles.exportStructure}><FileJson size={15} /><span><strong>Archive structure</strong><small>manifest.json · a2a/ · artifacts/ · sideband/ · otel/ · timeline/</small></span></div>
+            </div>
+            <footer><span>Only captured data is included.</span><button className={styles.secondaryButton} onClick={() => setExportOpen(false)}>Cancel</button><button className={styles.primaryButton} disabled={!Object.values(exportSelection).some(Boolean)} onClick={() => void exportSession()}><Download size={14} /> Download ZIP</button></footer>
           </section>
         </div>
       )}
