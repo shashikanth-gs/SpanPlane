@@ -1,6 +1,6 @@
 {
   "name": "a2a-workbench",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A local-first A2A agent testing workbench for discovery, conversations, protocol operations, streaming, and content-aware artifacts.",
   "homepage": "https://github.com/shashikanth-gs/a2a-workbench#readme",
   "repository": {
