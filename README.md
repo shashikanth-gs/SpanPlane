@@ -1,5 +1,11 @@
 # A2A Workbench
 
+[![CI](https://github.com/shashikanth-gs/a2a-workbench/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/shashikanth-gs/a2a-workbench/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/a2a-workbench.svg)](https://www.npmjs.com/package/a2a-workbench)
+[![npm downloads](https://img.shields.io/npm/dm/a2a-workbench.svg)](https://www.npmjs.com/package/a2a-workbench)
+[![Node.js](https://img.shields.io/node/v/a2a-workbench.svg)](https://nodejs.org/)
+[![License](https://img.shields.io/github/license/shashikanth-gs/a2a-workbench.svg)](LICENSE)
+
 A2A Workbench is a local-first studio for testing [Agent2Agent (A2A)](https://a2a-protocol.org/) agents as real applications—not just as protocol endpoints. Discover an Agent Card, choose an advertised transport and protocol version, exercise conversations and task operations, inspect streaming lifecycle events, and render agent artifacts according to their declared content type.
 
 It uses the official [`@a2a-js/sdk`](https://github.com/a2aproject/a2a-js) for A2A wire handling. The Workbench does not implement JSON-RPC, HTTP+JSON, gRPC, or version compatibility shims itself.
