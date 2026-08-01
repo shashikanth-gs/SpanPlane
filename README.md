@@ -19,11 +19,16 @@ SpanPlane is a local-first studio for testing [Agent2Agent (A2A)](https://a2a-pr
 
 It uses the official [`@a2a-js/sdk`](https://github.com/a2aproject/a2a-js) for A2A wire handling. The Workbench does not implement JSON-RPC, HTTP+JSON, gRPC, or version compatibility shims itself.
 
-![SpanPlane showing a completed streamed travel-planning task, structured JSON artifact, advertised interfaces, and A2A wire events](https://raw.githubusercontent.com/shashikanth-gs/spanplane/main/public/screenshots/spanplane-live-travel-session.png)
+![SpanPlane showing a completed streamed travel-planning task, structured JSON artifact, advertised interfaces, and A2A wire events](public/screenshots/spanplane-live-travel-session.png)
 
 *A completed A2A v1.0 JSON-RPC session against a deterministic travel-planning agent: agent discovery, task streaming, a structured artifact, the content-aware composer, and the event inspector in one local view.*
 
 > **Status:** developer preview. The local Workbench, A2A v1.0/v0.3 compatibility support, and real-agent test matrix are functional. Scenario automation and direct TCK/ITK orchestration remain roadmap work.
+
+## Testing with Real Agents
+
+To test SpanPlane against fully-implemented agents written using ADK and LangGraph (with standard implementations and real LLM providers like NVIDIA APIs), check out the reference repository:
+[a2a-travel-agent-reference](https://github.com/shashikanth-gs/a2a-travel-agent-reference)
 
 ## Run locally
 
