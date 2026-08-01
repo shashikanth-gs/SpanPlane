@@ -1,4 +1,4 @@
-import type { OperationInput } from "@/lib/a2a-gateway";
+import type { OperationInput } from "@/lib/spanplane-gateway";
 import type { WireEvent } from "@/lib/workbench-types";
 import type { SidebandEvent } from "@/shared/evidence/types";
 import { appendEvidence } from "./service";

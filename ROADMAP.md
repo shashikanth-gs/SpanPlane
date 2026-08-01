@@ -1,6 +1,6 @@
-# A2A Workbench roadmap
+# SpanPlane roadmap
 
-This roadmap evolves A2A Workbench from an interactive developer preview into an open-source scenario and validation platform while keeping the official A2A SDK, TCK, and ITK as the protocol authorities.
+This roadmap evolves SpanPlane from an interactive developer preview into an open-source scenario and validation platform while keeping the official A2A SDK, TCK, and ITK as the protocol authorities.
 
 ## Guiding principles
 
@@ -29,7 +29,7 @@ The developer preview currently provides:
 - MIME-aware rendering for text, structured data, tabular data, documents, media, URLs, and binary downloads
 - Real-agent integration evidence across official JavaScript and Python samples
 - A deterministic protocol-rich travel scenario agent
-- Local npm distribution through `npx a2a-workbench` and global installation
+- Local npm distribution through `npx spanplane` and global installation
 - GitHub Actions CI plus an OIDC-based npm publishing workflow
 
 ## Phase 0: open-source foundation

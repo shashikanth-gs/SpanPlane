@@ -3,6 +3,53 @@ import type { AssembledArtifact, NormalizedPart } from "./workbench-types";
 type JsonObject = Record<string, unknown>;
 const isObject = (value: unknown): value is JsonObject => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
+export interface CorrelatedProtocolEvent {
+  requestId: string;
+  value: unknown;
+  timestamp: string;
+}
+
+export interface CorrelatedConversationItem {
+  id: string;
+  requestId?: string;
+  timestamp: string;
+}
+
+export interface ConversationTurn<T extends CorrelatedConversationItem> {
+  requestId: string;
+  messages: T[];
+  events: CorrelatedProtocolEvent[];
+  timestamp: string;
+}
+
+/**
+ * Groups local UI messages with the protocol events produced by the same send.
+ * A request ID is Workbench correlation, not an A2A identifier: the protocol
+ * task/context/message IDs remain untouched inside each event and message.
+ */
+export function assembleConversationTurns<T extends CorrelatedConversationItem>(
+  messages: T[],
+  events: CorrelatedProtocolEvent[],
+): ConversationTurn<T>[] {
+  const turns = new Map<string, ConversationTurn<T>>();
+
+  for (const message of messages) {
+    const requestId = message.requestId ?? `message:${message.id}`;
+    const current = turns.get(requestId) ?? { requestId, messages: [], events: [], timestamp: message.timestamp };
+    current.messages.push(message);
+    turns.set(requestId, current);
+  }
+
+  for (const event of events) {
+    const current = turns.get(event.requestId);
+    // Operations and resubscriptions may create protocol events without an
+    // outgoing conversation message. They belong in Tasks/Operations, not chat.
+    if (current) current.events.push(event);
+  }
+
+  return [...turns.values()];
+}
+
 function mediaType(part: JsonObject, fallback = "application/octet-stream") {
   return String(part.mediaType ?? part.mimeType ?? (isObject(part.file) ? part.file.mimeType ?? "" : "") ?? fallback).toLowerCase() || fallback;
 }
@@ -31,16 +78,18 @@ export function normalizeParts(value: unknown): NormalizedPart[] {
   return value.map(normalizePart);
 }
 
-export function extractMessages(value: unknown): JsonObject[] {
+export function extractMessages(value: unknown, options: { includeStatusMessages?: boolean } = {}): JsonObject[] {
   if (!isObject(value)) return [];
   if (Array.isArray(value.parts) && ("role" in value || "messageId" in value)) return [value];
   const messages: JsonObject[] = [];
-  for (const key of ["message", "task", "statusUpdate"]) {
+  for (const key of ["message", "task", "statusUpdate", "taskStatusUpdate"]) {
     const child = value[key];
-    if (isObject(child)) messages.push(...extractMessages(child));
+    if (isObject(child)) messages.push(...extractMessages(child, options));
   }
-  if (Array.isArray(value.history)) value.history.forEach((item) => messages.push(...extractMessages(item)));
-  if (isObject(value.status) && isObject(value.status.message)) messages.push(...extractMessages(value.status.message));
+  if (Array.isArray(value.history)) value.history.forEach((item) => messages.push(...extractMessages(item, options)));
+  if (options.includeStatusMessages !== false && isObject(value.status) && isObject(value.status.message)) {
+    messages.push(...extractMessages(value.status.message, options));
+  }
   return messages;
 }
 
@@ -51,8 +100,9 @@ function artifactFrom(value: unknown): JsonObject | undefined {
   return undefined;
 }
 
-export function assembleArtifacts(events: unknown[]): AssembledArtifact[] {
+export function assembleArtifacts(events: unknown[], options: { excludeArtifactIds?: Iterable<string> } = {}): AssembledArtifact[] {
   const map = new Map<string, AssembledArtifact>();
+  const excluded = new Set(options.excludeArtifactIds ?? []);
   const visit = (value: unknown) => {
     if (!isObject(value)) return;
     if (Array.isArray(value.artifacts)) value.artifacts.forEach((item) => merge(item, false, true));
@@ -70,6 +120,7 @@ export function assembleArtifacts(events: unknown[]): AssembledArtifact[] {
     const artifact = artifactFrom(raw);
     if (!artifact) return;
     const id = String(artifact.artifactId);
+    if (excluded.has(id)) return;
     const inheritedMediaType = typeof artifact.mimeType === "string" ? artifact.mimeType : undefined;
     const rawParts = Array.isArray(artifact.parts) ? artifact.parts : [];
     const next = rawParts.map((rawPart, index) => {
@@ -82,12 +133,26 @@ export function assembleArtifacts(events: unknown[]): AssembledArtifact[] {
       return inheritedMediaType && !hasOwnMediaType ? { ...part, mediaType: inheritedMediaType } : part;
     });
     const current = map.get(id);
+    const mergedParts = append && current ? [...current.parts, ...next] : next;
     map.set(id, {
       artifactId: id,
       name: typeof artifact.name === "string" ? artifact.name : current?.name,
       description: typeof artifact.description === "string" ? artifact.description : current?.description,
-      parts: append && current ? [...current.parts, ...next] : next,
+      // Token streams commonly carry one TextPart per update. Preserve every
+      // wire event in the event inspector, but coalesce adjacent compatible
+      // text parts for a stable, progressively repainting rendered document.
+      parts: mergedParts.reduce<NormalizedPart[]>((parts, part) => {
+        const previous = parts.at(-1);
+        const compatibleText = previous?.kind === "text" && part.kind === "text" &&
+          previous.mediaType === part.mediaType && previous.filename === part.filename &&
+          JSON.stringify(previous.metadata) === JSON.stringify(part.metadata);
+        if (compatibleText && typeof previous.value === "string" && typeof part.value === "string") {
+          parts[parts.length - 1] = { ...previous, value: previous.value + part.value };
+        } else parts.push(part);
+        return parts;
+      }, []),
       complete: complete || current?.complete || false,
+      updateCount: (current?.updateCount ?? 0) + 1,
     });
   };
   events.forEach(visit);

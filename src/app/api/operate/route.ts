@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { executeOperation, type OperationInput } from "@/lib/a2a-gateway";
+import { executeOperation, type OperationInput } from "@/lib/spanplane-gateway";
 import { apiError } from "@/lib/api-response";
 import { readJsonRequest } from "@/lib/request-guard";
 import {

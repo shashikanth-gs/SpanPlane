@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "A2A Workbench",
+  title: "SpanPlane",
   description: "A protocol-aware test studio for A2A v1.0 and v0.3 agents.",
 };
 

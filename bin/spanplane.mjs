@@ -11,7 +11,7 @@ const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
 
 function usage() {
-  process.stdout.write(`A2A Workbench\n\nUsage:\n  a2a-workbench [options]\n\nOptions:\n  -p, --port <port>             Port to listen on (default: 3001)\n  -H, --hostname <host>         Hostname to listen on (default: 127.0.0.1)\n      --telemetry <mode>        auto, required, or off (default: auto)\n      --phoenix-port <port>     Phoenix UI and OTLP/HTTP port (default: 6006)\n      --phoenix-grpc-port <port> Phoenix OTLP/gRPC port (default: 4317)\n      --python <path>           Python interpreter for managed Phoenix\n      --keepAliveTimeout        Forwarded to Next.js in milliseconds\n  -h, --help                    Show this help\n\nExamples:\n  npx a2a-workbench\n  a2a-workbench --port 4567\n  a2a-workbench --telemetry off\n`);
+  process.stdout.write(`SpanPlane\n\nUsage:\n  spanplane [options]\n\nOptions:\n  -p, --port <port>             Port to listen on (default: 3001)\n  -H, --hostname <host>         Hostname to listen on (default: 127.0.0.1)\n      --telemetry <mode>        auto, required, or off (default: auto)\n      --phoenix-port <port>     Phoenix UI and OTLP/HTTP port (default: 6006)\n      --phoenix-grpc-port <port> Phoenix OTLP/gRPC port (default: 4317)\n      --python <path>           Python interpreter for managed Phoenix\n      --keepAliveTimeout        Forwarded to Next.js in milliseconds\n  -h, --help                    Show this help\n\nExamples:\n  npx spanplane\n  spanplane --port 4567\n  spanplane --telemetry off\n`);
 }
 
 function optionValue(names, fallback) {
@@ -42,7 +42,7 @@ async function main() {
   const phoenixPort = optionValue(["--phoenix-port"], process.env.A2A_PHOENIX_PORT || "6006");
   const phoenixGrpcPort = optionValue(["--phoenix-grpc-port"], process.env.A2A_PHOENIX_GRPC_PORT || "4317");
   const python = optionValue(["--python"], process.env.A2A_PYTHON);
-  const localDataDirectory = resolve(process.env.A2A_DATA_DIR || resolve(process.cwd(), ".a2a-data"));
+  const localDataDirectory = resolve(process.env.A2A_DATA_DIR || resolve(process.cwd(), ".spanplane-data"));
   const valueOptions = ["--port", "-p", "--hostname", "--host", "-H", "--telemetry", "--phoenix-port", "--phoenix-grpc-port", "--python"];
   const passthrough = args.filter((argument, index) => {
     const previous = args[index - 1];
@@ -106,13 +106,13 @@ async function main() {
     stop("SIGTERM");
   });
   child.on("error", (error) => {
-    process.stderr.write(`Unable to start A2A Workbench: ${error.message}\n`);
+    process.stderr.write(`Unable to start SpanPlane: ${error.message}\n`);
     process.exitCode = 1;
     stop("SIGTERM");
   });
 }
 
 main().catch((error) => {
-  process.stderr.write(`${error instanceof Error ? error.message : "Unable to start A2A Workbench."}\n`);
+  process.stderr.write(`${error instanceof Error ? error.message : "Unable to start SpanPlane."}\n`);
   process.exitCode = 1;
 });

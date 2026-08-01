@@ -240,7 +240,7 @@ export function ExecutionExplorerPrototype() {
     ));
 
     files["manifest.json"] = strToU8(JSON.stringify({
-      format: "a2a-workbench-session",
+      format: "spanplane-session",
       version: 1,
       exportedAt: new Date().toISOString(),
       contextId: "ctx_241f",
@@ -263,7 +263,7 @@ export function ExecutionExplorerPrototype() {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = "a2a-workbench-ctx_241f.zip";
+    anchor.download = "spanplane-ctx_241f.zip";
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
@@ -275,8 +275,8 @@ export function ExecutionExplorerPrototype() {
     <main className={styles.shell}>
       <header className={styles.topbar}>
         <div className={styles.brand}>
-          <span className={styles.brandMark}><Activity size={17} /></span>
-          <span><strong>A2A Workbench</strong><small>Execution explorer · concept</small></span>
+          <span className={styles.brandMark}><img src="/icon.svg" width="17" height="17" alt="Logo" /></span>
+          <span><strong>SpanPlane</strong><small>Execution explorer · concept</small></span>
         </div>
         <div className={styles.agentIdentity}>
           <span className={styles.agentAvatar}>KT</span>

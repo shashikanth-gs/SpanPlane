@@ -1,0 +1,142 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 600">
+  <defs>
+    <!-- Background Gradients -->
+    <linearGradient id="mainBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#1e293b" />
+    </linearGradient>
+    
+    <linearGradient id="agentBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#334155" />
+    </linearGradient>
+
+    <!-- Accent Gradients -->
+    <linearGradient id="accentBlue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#818cf8" />
+    </linearGradient>
+
+    <linearGradient id="accentPurple" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#c084fc" />
+      <stop offset="100%" stop-color="#f472b6" />
+    </linearGradient>
+
+    <linearGradient id="accentGreen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#34d399" />
+      <stop offset="100%" stop-color="#2dd4bf" />
+    </linearGradient>
+
+    <!-- Drop Shadows -->
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
+    
+    text { font-family: 'Inter', -apple-system, sans-serif; }
+    
+    .text-h1 { font-size: 24px; font-weight: 700; fill: #f8fafc; }
+    .text-h2 { font-size: 16px; font-weight: 600; fill: #f8fafc; }
+    .text-body { font-size: 14px; font-weight: 400; fill: #94a3b8; }
+    .text-small { font-size: 12px; font-weight: 600; fill: #64748b; letter-spacing: 0.5px; }
+    
+    .panel { fill: #0f172a; stroke: #334155; stroke-width: 1.5; filter: url(#shadow); rx: 16px; }
+    .panel-inner { fill: #1e293b; stroke: #475569; stroke-width: 1.5; rx: 12px; }
+    .panel-glow-blue { fill: #172554; stroke: url(#accentBlue); stroke-width: 2; rx: 12px; filter: url(#shadow); }
+    .panel-glow-green { fill: #064e3b; stroke: url(#accentGreen); stroke-width: 2; rx: 12px; filter: url(#shadow); }
+    .panel-glow-purple { fill: #2e1065; stroke: url(#accentPurple); stroke-width: 2; rx: 12px; filter: url(#shadow); }
+    
+    .wire-blue { fill: none; stroke: url(#accentBlue); stroke-width: 3; stroke-dasharray: 6 6; animation: flow 10s linear infinite; }
+    .wire-purple { fill: none; stroke: url(#accentPurple); stroke-width: 3; stroke-dasharray: 6 6; animation: flow 10s linear infinite; }
+    .wire-green { fill: none; stroke: url(#accentGreen); stroke-width: 3; stroke-dasharray: 6 6; animation: flow 10s linear infinite; }
+    .wire-dim { fill: none; stroke: #475569; stroke-width: 2; stroke-dasharray: 4 4; animation: flow 20s linear infinite; }
+    
+    @keyframes flow { to { stroke-dashoffset: -1000; } }
+
+    @media (prefers-color-scheme: light) {
+      .text-h1, .text-h2 { fill: #0f172a; }
+      .text-body { fill: #475569; }
+      .panel { fill: #f8fafc; stroke: #cbd5e1; }
+      .panel-inner { fill: #ffffff; stroke: #e2e8f0; }
+      .panel-glow-blue { fill: #f0f9ff; stroke: #38bdf8; }
+      .panel-glow-green { fill: #ecfdf5; stroke: #34d399; }
+      .panel-glow-purple { fill: #faf5ff; stroke: #c084fc; }
+      .wire-dim { stroke: #cbd5e1; }
+    }
+  </style>
+
+  <!-- ================= LEFT SIDE: EXTERNAL AGENT ================= -->
+  <rect x="40" y="160" width="220" height="300" class="panel-inner" />
+  
+  <circle cx="150" cy="240" r="32" fill="#334155" opacity="0.5" />
+  <path d="M 135 230 H 165 V 250 H 135 Z" fill="none" stroke="#94a3b8" stroke-width="2" rx="4"/>
+  <circle cx="144" cy="240" r="2" fill="#38bdf8" />
+  <circle cx="156" cy="240" r="2" fill="#38bdf8" />
+  
+  <text x="150" y="310" class="text-h1" text-anchor="middle">A2A Agent</text>
+  <text x="150" y="335" class="text-body" text-anchor="middle">Under Test</text>
+  <text x="150" y="380" class="text-small" text-anchor="middle">ANY PROTOCOL OR SDK</text>
+
+  <!-- ================= RIGHT SIDE: AGENT DOGFOOD ================= -->
+  <rect x="380" y="40" width="580" height="520" class="panel" />
+  <text x="670" y="85" class="text-h1" text-anchor="middle">Agent DogFood</text>
+  <text x="670" y="105" class="text-body" text-anchor="middle">Local-first Interactive Test Studio</text>
+
+  <!-- MODULES: Middle Column -->
+  <!-- 1. Gateway -->
+  <rect x="420" y="130" width="220" height="90" class="panel-glow-blue" />
+  <text x="530" y="170" class="text-h2" text-anchor="middle">A2A Gateway</text>
+  <text x="530" y="195" class="text-small" text-anchor="middle">JSON-RPC / HTTP+JSON / gRPC</text>
+
+  <!-- 2. Sideband Decoder -->
+  <rect x="420" y="260" width="220" height="90" class="panel-glow-green" />
+  <text x="530" y="300" class="text-h2" text-anchor="middle">Sideband Decoder</text>
+  <text x="530" y="325" class="text-small" text-anchor="middle">EXTENSION CONTEXT &amp; EVENTS</text>
+
+  <!-- 3. OTel Collector -->
+  <rect x="420" y="390" width="220" height="90" class="panel-glow-purple" />
+  <text x="530" y="430" class="text-h2" text-anchor="middle">OTel Collector</text>
+  <text x="530" y="455" class="text-small" text-anchor="middle">MANAGED ARIZE PHOENIX</text>
+
+  <!-- MODULES: Right Column -->
+  <!-- Content UI Box -->
+  <rect x="720" y="130" width="200" height="170" class="panel-inner" />
+  <text x="820" y="170" class="text-h2" text-anchor="middle">Generative UI</text>
+  <text x="820" y="210" class="text-body" text-anchor="middle">Tasks &amp; Operations</text>
+  <text x="820" y="240" class="text-body" text-anchor="middle">Content Artifacts</text>
+  <text x="820" y="270" class="text-body" text-anchor="middle">Gen AI Visualizations</text>
+
+  <!-- Evidence Store Box -->
+  <rect x="720" y="340" width="200" height="140" class="panel-inner" />
+  <text x="820" y="385" class="text-h2" text-anchor="middle">Evidence Store</text>
+  <text x="820" y="415" class="text-body" text-anchor="middle">Append-only JSONL</text>
+  <text x="820" y="445" class="text-small" text-anchor="middle">SESSION ZIP EXPORT</text>
+
+
+  <!-- ================= DATA FLOW CONNECTIONS ================= -->
+  
+  <!-- From Agent -> Gateway (A2A Wire) -->
+  <path d="M 260 175 L 420 175" class="wire-blue" />
+  <text x="340" y="165" class="text-small" text-anchor="middle" fill="#38bdf8">A2A WIRE (v1/v0.3)</text>
+
+  <!-- From Agent -> OTel Collector (OTLP) -->
+  <path d="M 260 435 L 420 435" class="wire-purple" />
+  <text x="340" y="425" class="text-small" text-anchor="middle" fill="#c084fc">OTLP TRACES</text>
+
+  <!-- Gateway -> Sideband (Internal Routing) -->
+  <path d="M 530 220 L 530 260" class="wire-green" />
+
+  <!-- Internal Connections -> UI -->
+  <path d="M 640 150 C 680 150, 680 160, 720 160" class="wire-dim" /> <!-- Gateway to UI -->
+  <path d="M 640 280 C 680 280, 680 215, 720 215" class="wire-dim" /> <!-- Sideband to UI -->
+  <path d="M 640 410 C 680 410, 680 270, 720 270" class="wire-dim" /> <!-- OTel to UI -->
+
+  <!-- Internal Connections -> Evidence Store -->
+  <path d="M 640 200 C 680 200, 680 370, 720 370" class="wire-dim" /> <!-- Gateway to Evidence -->
+  <path d="M 640 330 C 680 330, 680 410, 720 410" class="wire-dim" /> <!-- Sideband to Evidence -->
+  <path d="M 640 460 C 680 460, 680 450, 720 450" class="wire-dim" /> <!-- OTel to Evidence -->
+  
+</svg>

@@ -6,16 +6,24 @@ This repository includes a provisional, implementation-neutral contract. It is *
 
 ## Negotiation
 
-The built-in provisional URI is:
+The built-in URIs are:
 
 ```text
 urn:agent-observability:sideband-events:v1
+urn:x-a2a:trace:v1
 ```
 
-Replace or extend it at runtime without changing code:
+The first is the Workbench's provisional generic metadata contract. The second
+is the public trace-artifact contract used by
+[`a2a-wrapper`](https://github.com/shashikanth-gs/a2a-wrapper). Its dedicated
+adapter maps `trace.lifecycle`, `trace.mcp.start`, `trace.mcp`,
+`trace.thinking`, `trace.decision`, and `trace.delegation` artifacts to
+normalized Sideband events and preserves their original parts and identifiers.
+
+Add deployment-specific URIs at runtime without changing code:
 
 ```bash
-A2A_SIDEBAND_EXTENSION_URIS="https://example.com/extensions/sideband/v1" npx a2a-workbench
+A2A_SIDEBAND_EXTENSION_URIS="https://example.com/extensions/sideband/v1" npx spanplane
 ```
 
 An agent advertises the contract in its Agent Card:
@@ -63,6 +71,11 @@ Agents place sideband content in a metadata member named with the extension URI 
 ```
 
 For compatibility, the decoder also accepts the exact URI as the metadata key and `sidebandEvents` or `sideband` inside metadata—but only after the extension URI has been negotiated.
+
+An understood extension may instead contribute an A2A Artifact by listing its
+URI in `artifact.extensions`. The decoder maps that artifact's parts into
+Sideband and removes the same artifact from the user-facing response gallery.
+The raw A2A event is still retained in evidence and session exports.
 
 ## Supported content
 

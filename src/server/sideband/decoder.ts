@@ -1,5 +1,6 @@
 import { normalizePart, normalizeParts } from "../../lib/content";
 import type { EvidenceReferences, SidebandEvent, SidebandLevel } from "../../shared/evidence/types";
+import { decodeExtensionArtifact } from "./adapters";
 
 type JsonObject = Record<string, unknown>;
 const isObject = (value: unknown): value is JsonObject => Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -51,6 +52,25 @@ function metadataContainers(value: unknown, containers: JsonObject[] = [], seen 
   return containers;
 }
 
+function extensionArtifacts(value: unknown, artifacts: Array<{ artifact: JsonObject; references: EvidenceReferences }> = [], references: EvidenceReferences = {}, seen = new WeakSet<object>()) {
+  if (!value || typeof value !== "object" || seen.has(value)) return artifacts;
+  seen.add(value);
+  if (Array.isArray(value)) {
+    value.forEach((item) => extensionArtifacts(item, artifacts, references, seen));
+    return artifacts;
+  }
+  const record = value as JsonObject;
+  const nextReferences = referencesFrom(record, references);
+  if (typeof record.artifactId === "string" && Array.isArray(record.parts)) {
+    artifacts.push({ artifact: record, references: { ...nextReferences, artifactId: record.artifactId } });
+    return artifacts;
+  }
+  for (const item of Object.values(record)) {
+    if (Array.isArray(item) || isObject(item)) extensionArtifacts(item, artifacts, nextReferences, seen);
+  }
+  return artifacts;
+}
+
 function payloadItems(payload: unknown): unknown[] {
   if (Array.isArray(payload)) return payload;
   if (isObject(payload) && Array.isArray(payload.events)) return payload.events;
@@ -97,6 +117,17 @@ export function extractSidebandEvents(
 ): SidebandEvent[] {
   if (!context.negotiatedExtensions.length) return [];
   const references = envelopeReferences(envelope);
+  const negotiated = new Set(context.negotiatedExtensions);
+  const artifactEvents = extensionArtifacts(envelope).flatMap(({ artifact, references: artifactReferences }) => {
+    const extensionUris = Array.isArray(artifact.extensions)
+      ? artifact.extensions.filter((value): value is string => typeof value === "string" && negotiated.has(value))
+      : [];
+    return extensionUris.map((extensionUri) => decodeExtensionArtifact(artifact, {
+      ...context,
+      extensionUri,
+      references: { ...references, ...artifactReferences },
+    })).filter((event): event is SidebandEvent => Boolean(event));
+  });
   const candidates: Array<{ extensionUri: string; payload: unknown }> = [];
   for (const metadata of metadataContainers(envelope)) {
     for (const extensionUri of context.negotiatedExtensions) {
@@ -109,13 +140,14 @@ export function extractSidebandEvents(
       }
     }
   }
+  const metadataEvents = candidates.flatMap(({ extensionUri, payload }) => payloadItems(payload).map((item) => ({ extensionUri, item })))
+    .map(({ extensionUri, item }) => toEvent(item, { ...context, extensionUri, references }));
   const seen = new Set<string>();
-  return candidates.flatMap(({ extensionUri, payload }) => payloadItems(payload).map((item) => ({ extensionUri, item })))
-    .filter(({ extensionUri, item }) => {
-      const key = `${extensionUri}:${JSON.stringify(item)}`;
+  return [...artifactEvents, ...metadataEvents]
+    .filter((event) => {
+      const key = `${event.extensionUri}:${event.id}:${JSON.stringify(event.parts)}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
-    })
-    .map(({ extensionUri, item }) => toEvent(item, { ...context, extensionUri, references }));
+    });
 }

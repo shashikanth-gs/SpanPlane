@@ -1,7 +1,7 @@
 import { ExecutionExplorerPrototype } from "@/components/ExecutionExplorerPrototype";
 
 export const metadata = {
-  title: "Execution Explorer Prototype | A2A Workbench",
+  title: "Execution Explorer Prototype | SpanPlane",
   description: "Interactive concept for capability-aware A2A debugging and observability.",
 };
 

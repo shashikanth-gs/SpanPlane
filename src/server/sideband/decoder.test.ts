@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { extractSidebandEvents } from "./decoder";
+import { A2A_WRAPPER_TRACE_EXTENSION_URI } from "./adapters";
 
 const extensionUri = "urn:agent-observability:sideband-events:v1";
 
@@ -40,5 +41,31 @@ describe("extractSidebandEvents", () => {
       sessionId: "session", requestId: "request", negotiatedExtensions: [extensionUri],
     });
     expect(event.parts[0]).toMatchObject({ kind: "text", value: "Scoped event" });
+  });
+
+  it("decodes a2a-wrapper trace artifacts through its explicit compatibility adapter", () => {
+    const [event] = extractSidebandEvents({ artifactUpdate: {
+      taskId: "task-wrapper",
+      contextId: "context-wrapper",
+      artifact: {
+        artifactId: "trace-mcp-1",
+        name: "trace.mcp",
+        extensions: [A2A_WRAPPER_TRACE_EXTENSION_URI],
+        metadata: { traceType: "trace.mcp", timestamp: "2026-07-29T23:13:02.133Z" },
+        parts: [{ data: { trace_id: "trace-wrapper", toolKind: "shell", status: "declined" }, metadata: { mimeType: "application/json" } }],
+      },
+    } }, { sessionId: "session", requestId: "request", negotiatedExtensions: [A2A_WRAPPER_TRACE_EXTENSION_URI] });
+
+    expect(event).toMatchObject({
+      id: "trace-mcp-1",
+      extensionUri: A2A_WRAPPER_TRACE_EXTENSION_URI,
+      type: "tool.declined",
+      title: "Tool invocation declined",
+      level: "warning",
+      timestamp: "2026-07-29T23:13:02.133Z",
+      metadata: { adapter: "a2a-wrapper", traceType: "trace.mcp" },
+      references: { taskId: "task-wrapper", contextId: "context-wrapper", artifactId: "trace-mcp-1", traceId: "trace-wrapper" },
+    });
+    expect(event.parts[0]).toMatchObject({ kind: "data", value: { trace_id: "trace-wrapper", toolKind: "shell", status: "declined" } });
   });
 });

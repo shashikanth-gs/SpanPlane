@@ -37,6 +37,23 @@ import { extractSidebandEvents } from "../server/sideband/decoder";
 
 const DEFAULT_TIMEOUT = 60_000;
 const MAX_CARD_BYTES = 2 * 1024 * 1024;
+const DEFAULT_AGENT_CARD_PATH = ".well-known/agent-card.json";
+
+export function agentCardUrlCandidates(input: string): string[] {
+  const supplied = new URL(input);
+  const suppliedUrl = supplied.toString();
+  const looksLikeCardUrl = supplied.pathname.toLowerCase().endsWith(".json");
+  if (looksLikeCardUrl) return [suppliedUrl];
+
+  supplied.search = "";
+  supplied.hash = "";
+  const candidates = [
+    new URL(DEFAULT_AGENT_CARD_PATH, supplied).toString(),
+    new URL(`/${DEFAULT_AGENT_CARD_PATH}`, supplied.origin).toString(),
+    supplied.toString(),
+  ];
+  return [...new Set(candidates)];
+}
 
 function timeout(config: ConnectionConfig) {
   const max = isDemoDeployment() ? DEMO_MAX_TIMEOUT_MS : 180_000;
@@ -73,6 +90,24 @@ function cardAllowedInDeployment(card: AgentCard): AgentCard {
   return { ...card, supportedInterfaces };
 }
 
+function compatibleProtocolVersion(value: string) {
+  return value.match(/^\d+\.\d+/)?.[0] ?? value;
+}
+
+/** Removes resolver-created duplicates such as v0.3 `url` plus an identical
+ * additionalInterface. Different major/minor protocol versions remain distinct. */
+export function dedupeSupportedInterfaces(interfaces: AgentCard["supportedInterfaces"]): AgentCard["supportedInterfaces"] {
+  const seen = new Set<string>();
+  return interfaces.filter((item) => {
+    const key = [
+      item.protocolBinding.toUpperCase(), compatibleProtocolVersion(item.protocolVersion), item.url, item.tenant ?? "",
+    ].join("|");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function requestOptions(config: ConnectionConfig, extensions: string[] = [], traceparent?: string): RequestOptions {
   const parameters = { ...config.headers, ...authHeaders(config.auth), ...(traceparent ? { traceparent } : {}) };
   return {
@@ -100,12 +135,35 @@ export async function discoverAgent(config: ConnectionConfig): Promise<DiscoverR
   const telemetry: WireEvent[] = [];
   const started = performance.now();
   const fetchImpl = createSafeFetch({ auth: config.auth, headers: config.headers, telemetry, timeoutMs: timeout(config) });
-  const response = await fetchImpl(config.cardUrl, { headers: { Accept: "application/json", "A2A-Version": "1.0" } });
-  const body = await readTextWithinLimit(response, MAX_CARD_BYTES);
-  let rawCard: Record<string, unknown>;
-  try { rawCard = JSON.parse(body) as Record<string, unknown>; }
-  catch { throw new Error(`Agent Card returned invalid JSON (HTTP ${response.status}).`); }
-  if (!response.ok) throw new Error(`Agent Card request failed with HTTP ${response.status}.`);
+  const attempts: string[] = [];
+  let rawCard: Record<string, unknown> | undefined;
+  let resolvedCardUrl = config.cardUrl;
+  for (const candidate of agentCardUrlCandidates(config.cardUrl)) {
+    await assertSafeUrl(candidate);
+    const response = await fetchImpl(candidate, { headers: { Accept: "application/json", "A2A-Version": "1.0" } });
+    const body = await readTextWithinLimit(response, MAX_CARD_BYTES);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(body);
+    } catch {
+      attempts.push(`${candidate} (HTTP ${response.status}, invalid JSON)`);
+      continue;
+    }
+    if (!response.ok) {
+      attempts.push(`${candidate} (HTTP ${response.status})`);
+      continue;
+    }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      attempts.push(`${candidate} (HTTP ${response.status}, JSON was not an object)`);
+      continue;
+    }
+    rawCard = parsed as Record<string, unknown>;
+    resolvedCardUrl = candidate;
+    break;
+  }
+  if (!rawCard) {
+    throw new Error(`Agent Card discovery failed. Tried: ${attempts.join("; ")}.`);
+  }
   const report = validateAgentCard(rawCard);
   const resolver = new DefaultAgentCardResolver({ fetchImpl, legacyCompat: { enabled: true } });
   let normalizedCard: AgentCard;
@@ -117,7 +175,9 @@ export async function discoverAgent(config: ConnectionConfig): Promise<DiscoverR
   }
   await assertSafeAgentCard(AgentCard.toJSON(normalizedCard) as Record<string, unknown>);
   normalizedCard = cardAllowedInDeployment(normalizedCard);
+  normalizedCard = { ...normalizedCard, supportedInterfaces: dedupeSupportedInterfaces(normalizedCard.supportedInterfaces) };
   return {
+    resolvedCardUrl,
     card: AgentCard.toJSON(normalizedCard) as Record<string, unknown>,
     rawCard,
     normalizedCard,

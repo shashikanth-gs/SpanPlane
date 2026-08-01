@@ -2,7 +2,7 @@
 
 ## Our commitment
 
-We want A2A Workbench to be a welcoming, respectful collaboration space for people with different backgrounds, identities, experience levels, and technical perspectives.
+We want SpanPlane to be a welcoming, respectful collaboration space for people with different backgrounds, identities, experience levels, and technical perspectives.
 
 ## Expected behavior
 

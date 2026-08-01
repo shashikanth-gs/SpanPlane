@@ -1,9 +1,6 @@
 import { join, resolve } from "node:path";
 import type { RuntimePublicConfig } from "@/shared/evidence/types";
-
-// This is a provisional, implementation-neutral contract identifier, not an
-// official A2A extension URI. Deployments can replace it without code changes.
-const DEFAULT_SIDEBAND_URI = "urn:agent-observability:sideband-events:v1";
+import { BUILT_IN_SIDEBAND_EXTENSION_URIS } from "../sideband/adapters";
 
 function enabled(value: string | undefined, fallback: boolean) {
   if (value === undefined) return fallback;
@@ -12,13 +9,14 @@ function enabled(value: string | undefined, fallback: boolean) {
 
 export function sidebandExtensionUris() {
   const configured = process.env.A2A_SIDEBAND_EXTENSION_URIS ?? process.env.A2A_SIDEBAND_EXTENSION_URI;
-  return [...new Set((configured ?? DEFAULT_SIDEBAND_URI).split(",").map((value) => value.trim()).filter(Boolean))];
+  const deploymentUris = configured?.split(",").map((value) => value.trim()).filter(Boolean) ?? [];
+  return [...new Set([...BUILT_IN_SIDEBAND_EXTENSION_URIS, ...deploymentUris])];
 }
 
 export function dataDirectory() {
   return process.env.A2A_DATA_DIR
     ? resolve(process.env.A2A_DATA_DIR)
-    : join(/* turbopackIgnore: true */ process.cwd(), ".a2a-data");
+    : join(/* turbopackIgnore: true */ process.cwd(), ".spanplane-data");
 }
 
 export function runtimePublicConfig(): RuntimePublicConfig {
@@ -28,6 +26,7 @@ export function runtimePublicConfig(): RuntimePublicConfig {
   return {
     features: {
       rawEvidenceViews: enabled(process.env.A2A_ENABLE_RAW_VIEWS, true),
+      richJsonViews: enabled(process.env.A2A_ENABLE_RICH_JSON, false),
     },
     sideband: {
       extensionUris: sidebandExtensionUris(),

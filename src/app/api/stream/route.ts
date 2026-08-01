@@ -1,4 +1,4 @@
-import { recoverMalformedLegacyResult, serializeStreamEvent, streamOperation, type OperationInput } from "@/lib/a2a-gateway";
+import { recoverMalformedLegacyResult, serializeStreamEvent, streamOperation, type OperationInput } from "@/lib/spanplane-gateway";
 import type { WireEvent } from "@/lib/workbench-types";
 import { readJsonRequest } from "@/lib/request-guard";
 import { extractSidebandEvents } from "@/server/sideband/decoder";

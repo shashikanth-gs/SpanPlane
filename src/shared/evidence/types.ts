@@ -43,6 +43,7 @@ export interface SidebandEvent {
 export interface RuntimePublicConfig {
   features: {
     rawEvidenceViews: boolean;
+    richJsonViews: boolean;
   };
   sideband: {
     extensionUris: string[];
