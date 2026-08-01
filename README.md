@@ -4,11 +4,16 @@
   <p><em>The ultimate protocol test studio for A2A agents.</em></p>
 </div>
 
-[![CI](https://github.com/shashikanth-gs/spanplane/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/shashikanth-gs/spanplane/actions/workflows/ci.yml)
-[![npm version](https://img.shields.io/npm/v/spanplane.svg)](https://www.npmjs.com/package/spanplane)
-[![npm downloads](https://img.shields.io/npm/dm/spanplane.svg)](https://www.npmjs.com/package/spanplane)
-[![Node.js](https://img.shields.io/node/v/spanplane.svg)](https://nodejs.org/)
-[![License](https://img.shields.io/github/license/shashikanth-gs/spanplane.svg)](LICENSE)
+<p align="center">
+  <a href="https://github.com/shashikanth-gs/spanplane/actions/workflows/ci.yml"><img src="https://github.com/shashikanth-gs/spanplane/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
+  <a href="https://www.npmjs.com/package/spanplane"><img src="https://img.shields.io/npm/v/spanplane.svg" alt="npm version" /></a>
+  <a href="https://www.npmjs.com/package/spanplane"><img src="https://img.shields.io/npm/dm/spanplane.svg" alt="npm downloads" /></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/node/v/spanplane.svg" alt="Node.js" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/shashikanth-gs/spanplane.svg" alt="License" /></a>
+  <a href="https://github.com/shashikanth-gs/spanplane/stargazers"><img src="https://img.shields.io/github/stars/shashikanth-gs/spanplane.svg?style=social" alt="GitHub stars" /></a>
+  <a href="https://github.com/shashikanth-gs/spanplane/network/members"><img src="https://img.shields.io/github/forks/shashikanth-gs/spanplane.svg?style=social" alt="GitHub forks" /></a>
+  <a href="https://github.com/shashikanth-gs/spanplane/issues"><img src="https://img.shields.io/github/issues/shashikanth-gs/spanplane.svg" alt="GitHub issues" /></a>
+</p>
 
 SpanPlane is a local-first studio for testing [Agent2Agent (A2A)](https://a2a-protocol.org/) agents as real applications—not just as protocol endpoints. Discover an Agent Card, choose an advertised transport and protocol version, exercise conversations and task operations, inspect streaming lifecycle events, and render agent artifacts according to their declared content type.
 
