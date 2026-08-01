@@ -1,6 +1,6 @@
 {
   "name": "spanplane",
-  "version": "0.1.1",
+  "version": "0.8.1",
   "description": "A local-first A2A agent testing workbench for discovery, conversations, protocol operations, streaming, and content-aware artifacts.",
   "homepage": "https://github.com/shashikanth-gs/spanplane#readme",
   "repository": {
