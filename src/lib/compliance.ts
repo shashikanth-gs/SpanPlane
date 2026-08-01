@@ -115,7 +115,19 @@ function validateV03(card: JsonObject, add: (severity: ComplianceSeverity, id: s
   else passed.push("$.url");
   if (!nonEmpty(card.protocolVersion)) add("error", "v03.protocolVersion", "$.protocolVersion", "v0.3 requires protocolVersion.");
   else if (!card.protocolVersion.startsWith("0.3")) add("warning", "v03.protocolVersion.value", "$.protocolVersion", "Expected a 0.3 protocol version for this card shape.");
-  if (card.preferredTransport && !nonEmpty(card.preferredTransport)) add("error", "v03.transport", "$.preferredTransport", "preferredTransport must be a non-empty string when present.");
+  if (!nonEmpty(card.preferredTransport)) add("error", "v03.transport", "$.preferredTransport", "v0.3 requires preferredTransport to identify the binding at the main URL.", "A2A v0.3 AgentCard §5.6.1");
+  else if (!["JSONRPC", "HTTP+JSON", "GRPC"].includes(card.preferredTransport.toUpperCase())) add("warning", "v03.transport.custom", "$.preferredTransport", "This is not a core v0.3 transport value (JSONRPC, HTTP+JSON, or GRPC).");
+  if (card.additionalInterfaces !== undefined && !Array.isArray(card.additionalInterfaces)) {
+    add("error", "v03.interfaces", "$.additionalInterfaces", "additionalInterfaces must be an array when present.");
+  } else if (Array.isArray(card.additionalInterfaces)) {
+    card.additionalInterfaces.forEach((entry, index) => {
+      const path = `$.additionalInterfaces[${index}]`;
+      if (!object(entry)) return add("error", "v03.interface.object", path, "Interface must be an object.");
+      if (!isInterfaceTarget(entry.url, entry.transport)) add("error", "v03.interface.url", `${path}.url`, "Interface target must match its declared transport.");
+      if (!nonEmpty(entry.transport)) add("error", "v03.interface.transport", `${path}.transport`, "transport is required.");
+      else if (!["JSONRPC", "HTTP+JSON", "GRPC"].includes(entry.transport.toUpperCase())) add("warning", "v03.interface.transport.custom", `${path}.transport`, "This is not a core v0.3 transport value; REST-style A2A should be advertised as HTTP+JSON.");
+    });
+  }
   if ("supportedInterfaces" in card) add("warning", "v03.v1-fields", "$.supportedInterfaces", "supportedInterfaces is a v1.0 field on an otherwise v0.3-shaped card.");
 }
 

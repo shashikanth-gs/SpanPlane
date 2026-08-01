@@ -1,20 +1,20 @@
 {
-  "name": "a2a-workbench",
+  "name": "spanplane",
   "version": "0.1.1",
   "description": "A local-first A2A agent testing workbench for discovery, conversations, protocol operations, streaming, and content-aware artifacts.",
-  "homepage": "https://github.com/shashikanth-gs/a2a-workbench#readme",
+  "homepage": "https://github.com/shashikanth-gs/spanplane#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/shashikanth-gs/a2a-workbench.git"
+    "url": "git+https://github.com/shashikanth-gs/spanplane.git"
   },
   "bugs": {
-    "url": "https://github.com/shashikanth-gs/a2a-workbench/issues"
+    "url": "https://github.com/shashikanth-gs/spanplane/issues"
   },
   "license": "Apache-2.0",
   "private": false,
   "type": "module",
   "bin": {
-    "a2a-workbench": "bin/a2a-workbench.mjs"
+    "spanplane": "bin/spanplane.mjs"
   },
   "files": [
     "bin",
@@ -55,6 +55,7 @@
     "@a2a-js/sdk": "^1.0.1",
     "@bufbuild/protobuf": "^2.13.0",
     "@grpc/grpc-js": "^1.14.4",
+    "fflate": "^0.8.3",
     "lucide-react": "^1.27.0",
     "next": "16.2.12",
     "postcss": "^8.5.24",

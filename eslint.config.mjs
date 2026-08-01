@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "dist/**",
     "out/**",
     "build/**",
+    // Project-local managed runtimes contain vendored UI bundles. They are
+    // downloaded dependencies, not application source.
+    ".spanplane-data/**",
+    ".a2a-data/**",
     "next-env.d.ts",
   ]),
 ]);

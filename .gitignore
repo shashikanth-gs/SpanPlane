@@ -20,6 +20,7 @@
 
 # production
 /build
+/.a2a-data/
 
 # misc
 .DS_Store
@@ -41,3 +42,4 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+/.spanplane-data/

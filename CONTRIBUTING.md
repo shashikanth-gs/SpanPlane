@@ -1,6 +1,6 @@
-# Contributing to A2A Workbench
+# Contributing to SpanPlane
 
-Thanks for improving A2A Workbench. Contributions should make A2A agent behavior easier to observe, test, and explain without replacing the official SDK or conformance tools.
+Thanks for improving SpanPlane. Contributions should make A2A agent behavior easier to observe, test, and explain without replacing the official SDK or conformance tools.
 
 ## Local setup
 
@@ -9,7 +9,7 @@ npm ci
 npm run dev
 ```
 
-The local application runs on port 3001. Use an Agent Card URL for an agent you are authorized to test.
+The local application runs on port 3001. Use the base URL or Agent Card URL for an agent you are authorized to test.
 
 ## Before opening a pull request
 

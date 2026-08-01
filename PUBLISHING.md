@@ -1,15 +1,15 @@
-# Publishing A2A Workbench
+# Publishing SpanPlane
 
-The public package name is `a2a-workbench`. Releases are published by GitHub Actions, not from a maintainer laptop.
+The public package name is `spanplane`. Releases are published by GitHub Actions, not from a maintainer laptop.
 
 ## One-time repository setup
 
-The canonical source repository is [`shashikanth-gs/a2a-workbench`](https://github.com/shashikanth-gs/a2a-workbench). Its `repository`, `bugs`, and `homepage` metadata are recorded in `package.json` for npm provenance.
+The canonical source repository is [`shashikanth-gs/spanplane`](https://github.com/shashikanth-gs/spanplane). Its `repository`, `bugs`, and `homepage` metadata are recorded in `package.json` for npm provenance.
 
 Before the first release, create the package on npm and configure its **Trusted Publisher**:
 
 1. On npmjs.com, open the package settings and choose **Trusted Publisher** → **GitHub Actions**.
-2. Enter GitHub owner `shashikanth-gs`, repository `a2a-workbench`, and workflow filename `publish.yml`.
+2. Enter GitHub owner `shashikanth-gs`, repository `spanplane`, and workflow filename `publish.yml`.
 3. Select the `npm publish` allowed action.
 4. If using the GitHub `npm` environment for approval protection, enter `npm` as the environment name there as well.
 
@@ -39,7 +39,7 @@ Trusted publishing uses GitHub OIDC. It avoids a long-lived `NPM_TOKEN` secret a
 6. Confirm the package with a clean invocation:
 
    ```bash
-   npx a2a-workbench --help
+   npx spanplane --help
    ```
 
 The CI workflow publishes public packages via the npm registry configured in `package.json`. It intentionally does not accept a registry token fallback; fix the Trusted Publisher configuration instead.

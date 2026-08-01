@@ -46,11 +46,16 @@ export interface WireEvent {
 }
 
 export interface DiscoverResponse {
+  resolvedCardUrl?: string;
   card: Record<string, unknown>;
   rawCard: Record<string, unknown>;
   report: ComplianceReport;
   telemetry: WireEvent[];
   latencyMs: number;
+  sideband?: {
+    advertisedUris: string[];
+    negotiatedUris: string[];
+  };
 }
 
 export type OperationAction =
@@ -71,6 +76,11 @@ export interface OperationResponse {
   protocolVersion: string;
   transport: string;
   diagnostics?: ComplianceIssue[];
+  sessionId?: string;
+  requestId?: string;
+  negotiatedExtensions?: string[];
+  sidebandEvents?: import("@/shared/evidence/types").SidebandEvent[];
+  traceId?: string;
 }
 
 export interface NormalizedPart {
@@ -88,4 +98,6 @@ export interface AssembledArtifact {
   description?: string;
   parts: NormalizedPart[];
   complete: boolean;
+  /** Number of protocol artifact snapshots/chunks merged into this view. */
+  updateCount: number;
 }

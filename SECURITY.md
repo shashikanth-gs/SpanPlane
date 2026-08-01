@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Security fixes are applied to the latest published minor version of A2A Workbench.
+Security fixes are applied to the latest published minor version of SpanPlane.
 
 ## Reporting a vulnerability
 
@@ -17,6 +17,6 @@ We will acknowledge reports promptly, investigate privately, and coordinate a fi
 
 ## Operating guidance
 
-A2A Workbench is primarily a local development tool that connects to agent-controlled URLs. Keep it bound to `127.0.0.1` by default, treat agent credentials as sensitive, and avoid testing untrusted endpoints from a network that can reach internal services. The Workbench includes URL safety checks and telemetry redaction, but these controls do not replace normal network isolation and credential hygiene.
+SpanPlane is primarily a local development tool that connects to agent-controlled URLs. Keep it bound to `127.0.0.1` by default, treat agent credentials as sensitive, and avoid testing untrusted endpoints from a network that can reach internal services. The Workbench includes URL safety checks and telemetry redaction, but these controls do not replace normal network isolation and credential hygiene.
 
-The optional Vercel demo is a separate, reduced-risk mode: it accepts only public HTTPS JSON-RPC and HTTP+JSON targets, blocks credentials and private networks, and disables gRPC and agent-triggered push webhooks. Its server-side controls complement—not replace—Vercel WAF rate limits and deployment monitoring. See [DEPLOYMENT.md](DEPLOYMENT.md) for the required configuration and operational checks.
+The optional public demo is a separate, reduced-risk mode: it accepts only public HTTPS JSON-RPC and HTTP+JSON targets, blocks credentials and private networks, and disables gRPC and agent-triggered push webhooks.

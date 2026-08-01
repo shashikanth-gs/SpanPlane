@@ -20,6 +20,8 @@ import {
   DefaultAgentCardResolver,
   JsonRpcTransportFactory,
   RestTransportFactory,
+  ServiceParameters,
+  withA2AExtensions,
   type Client,
   type RequestOptions,
 } from "@a2a-js/sdk/client";
@@ -30,9 +32,28 @@ import { DEMO_MAX_TIMEOUT_MS, isDemoDeployment } from "./deployment";
 import { createSafeFetch, authHeaders } from "./safe-fetch";
 import { assertSafeAgentCard, assertSafeInterfaceUrl, assertSafeUrl } from "./url-safety";
 import type { ConnectionConfig, DiscoverResponse, OperationAction, OperationResponse, WireEvent } from "./workbench-types";
+import { advertisedExtensionUris, negotiateSidebandExtensions } from "../server/sideband/extension";
+import { extractSidebandEvents } from "../server/sideband/decoder";
 
 const DEFAULT_TIMEOUT = 60_000;
 const MAX_CARD_BYTES = 2 * 1024 * 1024;
+const DEFAULT_AGENT_CARD_PATH = ".well-known/agent-card.json";
+
+export function agentCardUrlCandidates(input: string): string[] {
+  const supplied = new URL(input);
+  const suppliedUrl = supplied.toString();
+  const looksLikeCardUrl = supplied.pathname.toLowerCase().endsWith(".json");
+  if (looksLikeCardUrl) return [suppliedUrl];
+
+  supplied.search = "";
+  supplied.hash = "";
+  const candidates = [
+    new URL(DEFAULT_AGENT_CARD_PATH, supplied).toString(),
+    new URL(`/${DEFAULT_AGENT_CARD_PATH}`, supplied.origin).toString(),
+    supplied.toString(),
+  ];
+  return [...new Set(candidates)];
+}
 
 function timeout(config: ConnectionConfig) {
   const max = isDemoDeployment() ? DEMO_MAX_TIMEOUT_MS : 180_000;
@@ -69,10 +90,31 @@ function cardAllowedInDeployment(card: AgentCard): AgentCard {
   return { ...card, supportedInterfaces };
 }
 
-function requestOptions(config: ConnectionConfig): RequestOptions {
+function compatibleProtocolVersion(value: string) {
+  return value.match(/^\d+\.\d+/)?.[0] ?? value;
+}
+
+/** Removes resolver-created duplicates such as v0.3 `url` plus an identical
+ * additionalInterface. Different major/minor protocol versions remain distinct. */
+export function dedupeSupportedInterfaces(interfaces: AgentCard["supportedInterfaces"]): AgentCard["supportedInterfaces"] {
+  const seen = new Set<string>();
+  return interfaces.filter((item) => {
+    const key = [
+      item.protocolBinding.toUpperCase(), compatibleProtocolVersion(item.protocolVersion), item.url, item.tenant ?? "",
+    ].join("|");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function requestOptions(config: ConnectionConfig, extensions: string[] = [], traceparent?: string): RequestOptions {
+  const parameters = { ...config.headers, ...authHeaders(config.auth), ...(traceparent ? { traceparent } : {}) };
   return {
     signal: AbortSignal.timeout(timeout(config)),
-    serviceParameters: { ...config.headers, ...authHeaders(config.auth) },
+    serviceParameters: extensions.length
+      ? ServiceParameters.createFrom(parameters, withA2AExtensions(...extensions))
+      : parameters,
   };
 }
 
@@ -93,12 +135,35 @@ export async function discoverAgent(config: ConnectionConfig): Promise<DiscoverR
   const telemetry: WireEvent[] = [];
   const started = performance.now();
   const fetchImpl = createSafeFetch({ auth: config.auth, headers: config.headers, telemetry, timeoutMs: timeout(config) });
-  const response = await fetchImpl(config.cardUrl, { headers: { Accept: "application/json", "A2A-Version": "1.0" } });
-  const body = await readTextWithinLimit(response, MAX_CARD_BYTES);
-  let rawCard: Record<string, unknown>;
-  try { rawCard = JSON.parse(body) as Record<string, unknown>; }
-  catch { throw new Error(`Agent Card returned invalid JSON (HTTP ${response.status}).`); }
-  if (!response.ok) throw new Error(`Agent Card request failed with HTTP ${response.status}.`);
+  const attempts: string[] = [];
+  let rawCard: Record<string, unknown> | undefined;
+  let resolvedCardUrl = config.cardUrl;
+  for (const candidate of agentCardUrlCandidates(config.cardUrl)) {
+    await assertSafeUrl(candidate);
+    const response = await fetchImpl(candidate, { headers: { Accept: "application/json", "A2A-Version": "1.0" } });
+    const body = await readTextWithinLimit(response, MAX_CARD_BYTES);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(body);
+    } catch {
+      attempts.push(`${candidate} (HTTP ${response.status}, invalid JSON)`);
+      continue;
+    }
+    if (!response.ok) {
+      attempts.push(`${candidate} (HTTP ${response.status})`);
+      continue;
+    }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      attempts.push(`${candidate} (HTTP ${response.status}, JSON was not an object)`);
+      continue;
+    }
+    rawCard = parsed as Record<string, unknown>;
+    resolvedCardUrl = candidate;
+    break;
+  }
+  if (!rawCard) {
+    throw new Error(`Agent Card discovery failed. Tried: ${attempts.join("; ")}.`);
+  }
   const report = validateAgentCard(rawCard);
   const resolver = new DefaultAgentCardResolver({ fetchImpl, legacyCompat: { enabled: true } });
   let normalizedCard: AgentCard;
@@ -110,17 +175,23 @@ export async function discoverAgent(config: ConnectionConfig): Promise<DiscoverR
   }
   await assertSafeAgentCard(AgentCard.toJSON(normalizedCard) as Record<string, unknown>);
   normalizedCard = cardAllowedInDeployment(normalizedCard);
+  normalizedCard = { ...normalizedCard, supportedInterfaces: dedupeSupportedInterfaces(normalizedCard.supportedInterfaces) };
   return {
+    resolvedCardUrl,
     card: AgentCard.toJSON(normalizedCard) as Record<string, unknown>,
     rawCard,
     normalizedCard,
     report,
     telemetry,
     latencyMs: Math.round(performance.now() - started),
+    sideband: {
+      advertisedUris: advertisedExtensionUris(normalizedCard),
+      negotiatedUris: negotiateSidebandExtensions(normalizedCard),
+    },
   };
 }
 
-async function createClient(config: ConnectionConfig): Promise<{ client: Client; telemetry: WireEvent[] }> {
+async function createClient(config: ConnectionConfig): Promise<{ client: Client; telemetry: WireEvent[]; negotiatedExtensions: string[] }> {
   const discovery = await discoverAgent(config);
   const fetchImpl = createSafeFetch({ auth: config.auth, headers: config.headers, telemetry: discovery.telemetry, timeoutMs: timeout(config) });
   const transports = [
@@ -140,13 +211,25 @@ async function createClient(config: ConnectionConfig): Promise<{ client: Client;
     preferredTransports: config.protocolBinding ? [config.protocolBinding.toUpperCase()] : undefined,
     cardResolver: new DefaultAgentCardResolver({ fetchImpl, legacyCompat: { enabled: true } }),
   });
-  return { client: await factory.createFromAgentCard(card), telemetry: discovery.telemetry };
+  return {
+    client: await factory.createFromAgentCard(card),
+    telemetry: discovery.telemetry,
+    negotiatedExtensions: negotiateSidebandExtensions(card),
+  };
 }
 
 export interface OperationInput {
   connection: ConnectionConfig;
   action: OperationAction;
   params?: Record<string, unknown>;
+  sessionId?: string;
+  requestId?: string;
+  traceContext?: { traceId: string; spanId: string; traceparent: string };
+}
+
+function withNegotiatedExtensions(params: Record<string, unknown>, negotiatedExtensions: string[]) {
+  const supplied = Array.isArray(params.extensions) ? params.extensions.filter((value): value is string => typeof value === "string") : [];
+  return { ...params, extensions: [...new Set([...supplied, ...negotiatedExtensions])] };
 }
 
 export function buildSendRequest(params: Record<string, unknown> = {}): SendMessageRequest {
@@ -217,20 +300,27 @@ export function recoverMalformedLegacyResult(telemetry: WireEvent[]): unknown | 
 export async function executeOperation(input: OperationInput): Promise<OperationResponse> {
   await enforceDemoOperationPolicy(input);
   const started = performance.now();
-  const { client, telemetry } = await createClient(input.connection);
+  const { client, telemetry, negotiatedExtensions } = await createClient(input.connection);
   const params = input.params ?? {};
-  const options = requestOptions(input.connection);
+  const options = requestOptions(input.connection, negotiatedExtensions, input.traceContext?.traceparent);
   let result: unknown;
   switch (input.action) {
     case "send": {
-      try { result = serializeSendResult(await client.sendMessage(buildSendRequest(params), options)); }
+      try { result = serializeSendResult(await client.sendMessage(buildSendRequest(withNegotiatedExtensions(params, negotiatedExtensions)), options)); }
       catch (error) {
         const recovered = input.connection.diagnosticMode ? recoverMalformedLegacyResult(telemetry) : undefined;
         if (recovered === undefined) throw error;
         result = recovered;
+        const sessionId = input.sessionId ?? crypto.randomUUID();
+        const requestId = input.requestId ?? crypto.randomUUID();
         return {
           result, telemetry, latencyMs: Math.round(performance.now() - started), protocolVersion: client.protocolVersion, transport: client.transport.protocolName,
           diagnostics: [{ id: "legacy.malformed-result", severity: "warning", path: "$.result", message: `Rendered a non-compliant legacy response after the strict SDK rejected it: ${error instanceof Error ? error.message : "invalid response"}` }],
+          sessionId,
+          requestId,
+          negotiatedExtensions,
+          sidebandEvents: extractSidebandEvents(result, { sessionId, requestId, negotiatedExtensions }),
+          traceId: input.traceContext?.traceId,
         };
       }
       break;
@@ -252,12 +342,19 @@ export async function executeOperation(input: OperationInput): Promise<Operation
     case "deletePushConfig": await client.deleteTaskPushNotificationConfig(DeleteTaskPushNotificationConfigRequest.fromJSON({ tenant: params.tenant ?? "", taskId: params.taskId, id: params.configId }), options); result = { deleted: true }; break;
     default: throw new Error(`Unsupported operation: ${input.action satisfies never}`);
   }
+  const sessionId = input.sessionId ?? crypto.randomUUID();
+  const requestId = input.requestId ?? crypto.randomUUID();
   return {
     result,
     telemetry,
     latencyMs: Math.round(performance.now() - started),
     protocolVersion: client.protocolVersion,
     transport: client.transport.protocolName,
+    sessionId,
+    requestId,
+    negotiatedExtensions,
+    sidebandEvents: extractSidebandEvents(result, { sessionId, requestId, negotiatedExtensions }),
+    traceId: input.traceContext?.traceId,
   };
 }
 
@@ -265,15 +362,16 @@ export async function streamOperation(input: OperationInput): Promise<{
   events: AsyncGenerator<StreamResponse, void, undefined>;
   client: Client;
   telemetry: WireEvent[];
+  negotiatedExtensions: string[];
 }> {
   await enforceDemoOperationPolicy(input);
-  const { client, telemetry } = await createClient(input.connection);
+  const { client, telemetry, negotiatedExtensions } = await createClient(input.connection);
   const params = input.params ?? {};
-  const options = requestOptions(input.connection);
+  const options = requestOptions(input.connection, negotiatedExtensions, input.traceContext?.traceparent);
   const events = input.action === "send"
-    ? client.sendMessageStream(buildSendRequest(params), options)
+    ? client.sendMessageStream(buildSendRequest(withNegotiatedExtensions(params, negotiatedExtensions)), options)
     : client.resubscribeTask(SubscribeToTaskRequest.fromJSON({ tenant: params.tenant ?? "", id: params.taskId }), options);
-  return { events, client, telemetry };
+  return { events, client, telemetry, negotiatedExtensions };
 }
 
 export function serializeStreamEvent(event: StreamResponse): unknown {

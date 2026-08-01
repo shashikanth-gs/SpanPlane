@@ -1,5 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { buildSendRequest, selectAdvertisedInterface } from "./a2a-gateway";
+import { agentCardUrlCandidates, buildSendRequest, dedupeSupportedInterfaces, selectAdvertisedInterface } from "./spanplane-gateway";
+
+describe("Agent Card URL discovery", () => {
+  it("turns an agent base URL into the standard well-known card URL", () => {
+    expect(agentCardUrlCandidates("http://127.0.0.1:4201")[0]).toBe(
+      "http://127.0.0.1:4201/.well-known/agent-card.json",
+    );
+  });
+
+  it("preserves an explicit Agent Card URL", () => {
+    expect(agentCardUrlCandidates("https://agent.example/custom/card.json")).toEqual([
+      "https://agent.example/custom/card.json",
+    ]);
+  });
+
+  it("tries SDK-relative and origin-root discovery for a nested endpoint", () => {
+    expect(agentCardUrlCandidates("https://agent.example/a2a/")).toEqual([
+      "https://agent.example/a2a/.well-known/agent-card.json",
+      "https://agent.example/.well-known/agent-card.json",
+      "https://agent.example/a2a/",
+    ]);
+  });
+});
 
 describe("advertised interface selection", () => {
   it("distinguishes protocol versions that share a binding and URL", () => {
@@ -15,6 +37,15 @@ describe("advertised interface selection", () => {
       protocolBinding: "JSONRPC",
       protocolVersion: "0.3",
     })?.protocolVersion).toBe("0.3");
+  });
+
+  it("deduplicates equivalent v0.3 main and additional interfaces", () => {
+    const interfaces = dedupeSupportedInterfaces([
+      { url: "https://agent.example/a2a", protocolBinding: "JSONRPC", protocolVersion: "0.3.0", tenant: "" },
+      { url: "https://agent.example/a2a", protocolBinding: "JSONRPC", protocolVersion: "0.3", tenant: "" },
+      { url: "https://agent.example/a2a", protocolBinding: "JSONRPC", protocolVersion: "1.0", tenant: "" },
+    ]);
+    expect(interfaces.map((item) => item.protocolVersion)).toEqual(["0.3.0", "1.0"]);
   });
 });
 

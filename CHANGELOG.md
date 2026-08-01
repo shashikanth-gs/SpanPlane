@@ -1,6 +1,18 @@
 # Changelog
 
-All notable changes to A2A Workbench are documented here.
+All notable changes to SpanPlane are documented here.
+
+## [Unreleased]
+
+### Added
+
+- Negotiated, configurable sideband-event ingestion through the official A2A extension mechanism.
+- Inline and dedicated sideband views using the same MIME-aware renderer as agent artifacts.
+- Append-only, redacted evidence storage and selective ZIP export for A2A, sideband, OTEL, and runtime records.
+- W3C trace-context propagation and Phoenix-backed trace/span correlation, including tool spans.
+- A single-command managed Phoenix runtime with external, required, automatic-fallback, and disabled modes.
+- Runtime feature flags for raw evidence views.
+- Architecture and provisional sideband-contract documentation.
 
 ## [0.1.1] - 2026-07-29
 
@@ -24,4 +36,4 @@ All notable changes to A2A Workbench are documented here.
 - Content-aware rendered and raw views for text, Markdown, JSON, CSV, media, PDFs, URLs, and binary parts.
 - Explicit plain-text, Markdown, and structured-JSON composer modes.
 - Inline file attachments as named A2A raw parts with MIME and Agent Card input-mode visibility.
-- npm command distribution through `npx a2a-workbench` and `a2a-workbench` after global installation.
+- npm command distribution through `npx spanplane` and `spanplane` after global installation.

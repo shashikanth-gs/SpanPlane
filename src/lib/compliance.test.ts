@@ -27,6 +27,19 @@ describe("Agent Card compliance", () => {
     const report = validateAgentCard({ ...v1Card, supportedInterfaces: undefined, protocolVersion: "0.3", url: "http://localhost:3000/a2a", skills: [] });
     expect(report.version).toBe("0.3");
     expect(report.issues.some((issue) => issue.id === "card.skills")).toBe(true);
+    expect(report.issues.some((issue) => issue.id === "v03.transport")).toBe(true);
+  });
+
+  it("reports non-standard v0.3 REST transport labels", () => {
+    const report = validateAgentCard({
+      ...v1Card,
+      supportedInterfaces: undefined,
+      protocolVersion: "0.3.0",
+      url: "http://localhost:3000/a2a/jsonrpc",
+      preferredTransport: "JSONRPC",
+      additionalInterfaces: [{ url: "http://localhost:3000/a2a/rest", transport: "REST" }],
+    });
+    expect(report.issues).toContainEqual(expect.objectContaining({ id: "v03.interface.transport.custom", severity: "warning" }));
   });
 
   it("enforces the v1 Part oneof", () => {
