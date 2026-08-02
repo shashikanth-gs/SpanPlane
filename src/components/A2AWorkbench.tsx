@@ -541,7 +541,17 @@ export default function A2AWorkbench() {
           </div>
         </section>
 
-        {inspectorOpen && <aside className="inspector-panel"><header><div><Bug size={17} /><strong>Event inspector</strong><span>{logs.length}</span></div><div><button className="text-button" onClick={exportSession} disabled={!sessionId}><Download size={13} />Export</button><button className="icon-button" onClick={() => { setLogs([]); setSelectedLog(undefined); }} aria-label="Clear logs"><Trash2 size={15} /></button><button className="icon-button desktop-hide-inspector" onClick={() => setInspectorOpen(false)} aria-label="Close event inspector"><X size={16} /></button></div></header><div className="inspector-body"><div className="event-list">{logs.length === 0 ? <div className="logs-empty"><TerminalSquare size={25} /><span>No wire events yet</span></div> : logs.map((log) => <button key={log.id} className={selectedLog?.id === log.id ? "active" : ""} onClick={() => setSelectedLog(log)}><span className={`event-dot ${log.phase}`} /><span><strong>{log.method || log.phase}</strong><small>{new Date(log.timestamp).toLocaleTimeString()} {log.status ? `· ${log.status}` : ""} {log.durationMs ? `· ${log.durationMs}ms` : ""}</small></span><ChevronRight size={14} /></button>)}</div>{selectedLog && <div className="event-detail"><div className="detail-meta"><span>{selectedLog.phase}</span>{selectedLog.url && <code>{selectedLog.url}</code>}</div>{allowRaw ? <pre>{JSON.stringify(selectedLog, null, 2)}</pre> : <div className="raw-disabled"><Braces size={20} /><strong>Raw views are disabled</strong><span>Set A2A_ENABLE_RAW_VIEWS=true before starting the application.</span></div>}</div>}</div></aside>}
+        {inspectorOpen && <aside className="inspector-panel"><header><div><Bug size={17} /><strong>Event inspector</strong><span>{logs.length}</span></div><div><button className="text-button" onClick={exportSession} disabled={!sessionId}><Download size={13} />Export</button><button className="icon-button" onClick={() => { setLogs([]); setSelectedLog(undefined); }} aria-label="Clear logs"><Trash2 size={15} /></button><button className="icon-button desktop-hide-inspector" onClick={() => setInspectorOpen(false)} aria-label="Close event inspector"><X size={16} /></button></div></header><div className="inspector-body"><div className="event-list">{logs.length === 0 ? <div className="logs-empty"><TerminalSquare size={25} /><span>No wire events yet</span></div> : logs.map((log) => <button key={log.id} className={selectedLog?.id === log.id ? "active" : ""} onClick={() => setSelectedLog(log)}><span className={`event-dot ${log.phase}`} /><span><strong>{log.method || log.phase}</strong><small>{new Date(log.timestamp).toLocaleTimeString()} {log.status ? `· ${log.status}` : ""} {log.durationMs ? `· ${log.durationMs}ms` : ""}</small></span><ChevronRight size={14} /></button>)}</div>{selectedLog && <div className="event-detail">
+          <div className="detail-meta" style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "3px", minWidth: 0 }}>
+              <span>{selectedLog.phase}</span>{selectedLog.url && <code>{selectedLog.url}</code>}
+            </div>
+            <button className="icon-button" onClick={() => setSelectedLog(undefined)} aria-label="Close detail view">
+              <X size={15} />
+            </button>
+          </div>
+          {allowRaw ? <pre>{JSON.stringify(selectedLog, null, 2)}</pre> : <div className="raw-disabled"><Braces size={20} /><strong>Raw views are disabled</strong><span>Set A2A_ENABLE_RAW_VIEWS=true before starting the application.</span></div>}
+        </div>}</div></aside>}
       </div>
     </main>
   );
