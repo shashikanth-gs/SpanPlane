@@ -1,4 +1,5 @@
 import { join, resolve } from "node:path";
+import { tmpdir } from "node:os";
 import type { RuntimePublicConfig } from "@/shared/evidence/types";
 import { BUILT_IN_SIDEBAND_EXTENSION_URIS } from "../sideband/adapters";
 
@@ -14,9 +15,15 @@ export function sidebandExtensionUris() {
 }
 
 export function dataDirectory() {
-  return process.env.A2A_DATA_DIR
-    ? resolve(process.env.A2A_DATA_DIR)
-    : join(/* turbopackIgnore: true */ process.cwd(), ".spanplane-data");
+  if (process.env.A2A_DATA_DIR) {
+    return resolve(process.env.A2A_DATA_DIR);
+  }
+  
+  if (process.env.VERCEL === "1" || process.env.AWS_REGION) {
+    return join(tmpdir(), ".spanplane-data");
+  }
+
+  return join(/* turbopackIgnore: true */ process.cwd(), ".spanplane-data");
 }
 
 export function runtimePublicConfig(): RuntimePublicConfig {
