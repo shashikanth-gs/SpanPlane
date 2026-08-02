@@ -60,7 +60,7 @@ Open the displayed local URL, enter an agent’s `/.well-known/agent-card.json` 
 
 ## Hosted public demo
 
-The optional Workbench at [spanplane.all.allsrc.dev/workbench](https://spanplane.all.allsrc.dev/workbench) is a safe place to try public agents. It accepts publicly reachable **HTTPS JSON-RPC and HTTP+JSON** agents without a target allowlist.
+The optional Workbench at [spanplane.app.allsrc.dev/workbench](https://spanplane.app.allsrc.dev/workbench) is a safe place to try public agents. It accepts publicly reachable **HTTPS JSON-RPC and HTTP+JSON** agents without a target allowlist.
 
 The hosted demo deliberately excludes credentials, custom headers, private networks, gRPC, push webhooks, HTTP-only endpoints, and large attachments. Those are available in a local `npx spanplane` installation, where the network and credentials remain under your control.
 
