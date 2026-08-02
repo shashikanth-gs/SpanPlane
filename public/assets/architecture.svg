@@ -76,43 +76,43 @@
   <circle cx="144" cy="240" r="2" fill="#38bdf8" />
   <circle cx="156" cy="240" r="2" fill="#38bdf8" />
   
-  <text x="150" y="310" class="text-h1" text-anchor="middle">A2A Agent</text>
-  <text x="150" y="335" class="text-body" text-anchor="middle">Under Test</text>
-  <text x="150" y="380" class="text-small" text-anchor="middle">ANY PROTOCOL OR SDK</text>
+  <text x="150" y="310" class="text-h1" text-anchor="middle">Your Agent</text>
+  <text x="150" y="335" class="text-body" text-anchor="middle">System Under Test</text>
+  <text x="150" y="380" class="text-small" text-anchor="middle">YOUR APP OR SDK</text>
 
-  <!-- ================= RIGHT SIDE: AGENT DOGFOOD ================= -->
+  <!-- ================= RIGHT SIDE: SPANPLANE LOCAL RUNTIME ================= -->
   <rect x="380" y="40" width="580" height="520" class="panel" />
-  <text x="670" y="85" class="text-h1" text-anchor="middle">Agent DogFood</text>
-  <text x="670" y="105" class="text-body" text-anchor="middle">Local-first Interactive Test Studio</text>
+  <text x="670" y="85" class="text-h1" text-anchor="middle">SpanPlane</text>
+  <text x="670" y="105" class="text-body" text-anchor="middle">Local A2A Testing Runtime</text>
 
   <!-- MODULES: Middle Column -->
   <!-- 1. Gateway -->
   <rect x="420" y="130" width="220" height="90" class="panel-glow-blue" />
-  <text x="530" y="170" class="text-h2" text-anchor="middle">A2A Gateway</text>
-  <text x="530" y="195" class="text-small" text-anchor="middle">JSON-RPC / HTTP+JSON / gRPC</text>
+  <text x="530" y="165" class="text-h2" text-anchor="middle">A2A Workbench + Capture</text>
+  <text x="530" y="190" class="text-small" text-anchor="middle" font-size="10">DISCOVERY · TRANSPORTS · TASKS</text>
 
   <!-- 2. Sideband Decoder -->
   <rect x="420" y="260" width="220" height="90" class="panel-glow-green" />
   <text x="530" y="300" class="text-h2" text-anchor="middle">Sideband Decoder</text>
-  <text x="530" y="325" class="text-small" text-anchor="middle">EXTENSION CONTEXT &amp; EVENTS</text>
+  <text x="530" y="325" class="text-small" text-anchor="middle" font-size="10">EXTENSION CONTEXT &amp; EVENTS</text>
 
-  <!-- 3. OTel Collector -->
+  <!-- 3. Managed Phoenix -->
   <rect x="420" y="390" width="220" height="90" class="panel-glow-purple" />
-  <text x="530" y="430" class="text-h2" text-anchor="middle">OTel Collector</text>
-  <text x="530" y="455" class="text-small" text-anchor="middle">MANAGED ARIZE PHOENIX</text>
+  <text x="530" y="430" class="text-h2" text-anchor="middle">Managed Phoenix</text>
+  <text x="530" y="455" class="text-small" text-anchor="middle">OTLP + TRACE STORE</text>
 
   <!-- MODULES: Right Column -->
-  <!-- Content UI Box -->
+  <!-- Workbench UI Box -->
   <rect x="720" y="130" width="200" height="170" class="panel-inner" />
-  <text x="820" y="170" class="text-h2" text-anchor="middle">Generative UI</text>
-  <text x="820" y="210" class="text-body" text-anchor="middle">Tasks &amp; Operations</text>
-  <text x="820" y="240" class="text-body" text-anchor="middle">Content Artifacts</text>
-  <text x="820" y="270" class="text-body" text-anchor="middle">Gen AI Visualizations</text>
+  <text x="820" y="170" class="text-h2" text-anchor="middle">Workbench UI</text>
+  <text x="820" y="210" class="text-body" text-anchor="middle">Conversations &amp; Tasks</text>
+  <text x="820" y="240" class="text-body" text-anchor="middle">Rich Content Renderers</text>
+  <text x="820" y="270" class="text-body" text-anchor="middle">Telemetry &amp; Wire Events</text>
 
   <!-- Evidence Store Box -->
   <rect x="720" y="340" width="200" height="140" class="panel-inner" />
-  <text x="820" y="385" class="text-h2" text-anchor="middle">Evidence Store</text>
-  <text x="820" y="415" class="text-body" text-anchor="middle">Append-only JSONL</text>
+  <text x="820" y="385" class="text-h2" text-anchor="middle">Correlation + Evidence</text>
+  <text x="820" y="415" class="text-body" text-anchor="middle">Redacted, Append-only</text>
   <text x="820" y="445" class="text-small" text-anchor="middle">SESSION ZIP EXPORT</text>
 
 
@@ -120,14 +120,15 @@
   
   <!-- From Agent -> Gateway (A2A Wire) -->
   <path d="M 260 175 L 420 175" class="wire-blue" />
-  <text x="340" y="165" class="text-small" text-anchor="middle" fill="#38bdf8">A2A WIRE (v1/v0.3)</text>
+  <text x="340" y="165" class="text-small" text-anchor="middle" fill="#38bdf8" font-size="10">A2A CORE</text>
 
-  <!-- From Agent -> OTel Collector (OTLP) -->
+  <!-- From Agent -> Phoenix (OTLP) -->
   <path d="M 260 435 L 420 435" class="wire-purple" />
   <text x="340" y="425" class="text-small" text-anchor="middle" fill="#c084fc">OTLP TRACES</text>
 
   <!-- Gateway -> Sideband (Internal Routing) -->
   <path d="M 530 220 L 530 260" class="wire-green" />
+  <text x="545" y="247" class="text-small" fill="#34d399">NEGOTIATED</text>
 
   <!-- Internal Connections -> UI -->
   <path d="M 640 150 C 680 150, 680 160, 720 160" class="wire-dim" /> <!-- Gateway to UI -->

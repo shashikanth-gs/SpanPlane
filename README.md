@@ -15,13 +15,13 @@
   <a href="https://github.com/shashikanth-gs/spanplane/issues"><img src="https://img.shields.io/github/issues/shashikanth-gs/spanplane.svg" alt="GitHub issues" /></a>
 </p>
 
-SpanPlane is a local-first studio for testing [Agent2Agent (A2A)](https://a2a-protocol.org/) agents as real applications—not just as protocol endpoints. Discover an Agent Card, choose an advertised transport and protocol version, exercise conversations and task operations, inspect streaming lifecycle events, and render agent artifacts according to their declared content type.
+SpanPlane is a local-first studio for testing [Agent2Agent (A2A)](https://a2a-protocol.org/) agents as real applications—not just as protocol endpoints. Discover an Agent Card, choose an advertised transport and protocol version, exercise conversations and task operations, inspect streaming lifecycle events, render rich agent artifacts, and correlate optional sideband and OpenTelemetry evidence in the same session.
 
 It uses the official [`@a2a-js/sdk`](https://github.com/a2aproject/a2a-js) for A2A wire handling. The Workbench does not implement JSON-RPC, HTTP+JSON, gRPC, or version compatibility shims itself.
 
-![SpanPlane showing a completed streamed travel-planning task, structured JSON artifact, advertised interfaces, and A2A wire events](public/screenshots/spanplane-live-travel-session.png)
+![SpanPlane showing a completed streamed travel-planning task, an Experimental rich JSON artifact, advertised interfaces, and A2A wire events](public/screenshots/spanplane-live-travel-session.png)
 
-*A completed A2A v1.0 JSON-RPC session against a deterministic travel-planning agent: agent discovery, task streaming, a structured artifact, the content-aware composer, and the event inspector in one local view.*
+*A completed A2A v1.0 JSON-RPC session against a deterministic travel-planning agent: six advertised interfaces, task streaming, an inferred rich presentation backed by the exact JSON payload, the content-aware composer, and 18 captured wire events in one local view.*
 
 > **Status:** developer preview. The local Workbench, A2A v1.0/v0.3 compatibility support, and real-agent test matrix are functional. Scenario automation and direct TCK/ITK orchestration remain roadmap work.
 
@@ -60,7 +60,7 @@ Open the displayed local URL, enter an agent’s `/.well-known/agent-card.json` 
 
 ## Hosted public demo
 
-The optional demo at [spanplane.allsrc.dev](https://spanplane.allsrc.dev) is a safe place to try public agents: its root is the project/about page and the tester is at `/workbench`. It accepts publicly reachable **HTTPS JSON-RPC and HTTP+JSON** agents without a target allowlist.
+The optional Workbench at [spanplane.all.allsrc.dev/workbench](https://spanplane.all.allsrc.dev/workbench) is a safe place to try public agents. It accepts publicly reachable **HTTPS JSON-RPC and HTTP+JSON** agents without a target allowlist.
 
 The hosted demo deliberately excludes credentials, custom headers, private networks, gRPC, push webhooks, HTTP-only endpoints, and large attachments. Those are available in a local `npx spanplane` installation, where the network and credentials remain under your control.
 
@@ -88,15 +88,34 @@ It includes:
 
 A2A is always the system of record: the Workbench captures what the agent actually sends—messages, tasks, updates, artifacts, and transport exchanges. Sideband and OpenTelemetry enrich that evidence when an agent supports them; neither is required for an agent to be testable.
 
+```mermaid
+flowchart LR
+    Agent["Your agent / app"]
+    subgraph SpanPlane["SpanPlane local runtime"]
+        A2A["A2A Workbench + capture"]
+        Sideband["Sideband decoder"]
+        Phoenix["Managed Phoenix<br/>OTLP collector + trace store"]
+        Evidence["Redaction + evidence correlation"]
+        UI["Workbench UI + deterministic renderers"]
+        A2A --> Evidence
+        Sideband --> Evidence
+        Phoenix --> Evidence
+        Evidence --> UI
+    end
+    Agent -- "A2A core evidence" --> A2A
+    Agent -- "Negotiated A2A extension" --> Sideband
+    Agent -- "OTLP/HTTP traces" --> Phoenix
+```
+
 Sideband uses the A2A extension mechanism. The Workbench opts in only when an Agent Card advertises an extension URI it understands and uses the official SDK to transmit the version-correct extension service parameter. It supports both metadata-carried events and extension-contributed artifacts. There is no official universal sideband-event schema today, so the included generic contract is explicitly provisional. A built-in compatibility adapter also recognizes the public [`a2a-wrapper`](https://github.com/shashikanth-gs/a2a-wrapper) trace contract, `urn:x-a2a:trace:v1`, and maps its lifecycle, tool, reasoning, decision, delegation, and usage artifacts into Sideband without mixing them with user-facing outputs. Additional deployment contracts can be added with `A2A_SIDEBAND_EXTENSION_URIS`. See [SIDEBAND.md](SIDEBAND.md).
 
-### Out-of-the-box OpenTelemetry Collector
+### Managed Phoenix observability
 
-SpanPlane provides a fully managed, local **OpenTelemetry (OTel) Collector** out of the box. You do not need to set up any complex external infrastructure to see what's happening inside your agent. 
+SpanPlane starts and supervises a version-pinned local **Arize Phoenix** process by default. Phoenix owns both observability roles in this setup: it receives OTLP traces and stores them for SpanPlane to query and correlate. There is no separate SpanPlane collector process.
 
-To see your agent's internal traces in the "Telemetry" tab, your agent must export its traces via **OTLP/HTTP** to the local collector running on port `6006`.
+To see your agent's internal traces in the **Telemetry** tab, export them via **OTLP/HTTP** directly to the displayed Phoenix endpoint. The default local endpoint is:
 
-**1. Point your agent to the collector**
+**Point your agent to managed Phoenix**
 Set the following environment variable in your agent's environment or `.env` file:
 ```bash
 OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:6006/v1/traces
@@ -112,7 +131,7 @@ When configured, SpanPlane will instantly capture and visualize deep **Gen AI me
 - Retriever queries and embedded document chunks
 - LLM prompt traces, generation metrics, and token usage
 
-Under the hood, this is powered by a locally managed instance of **Arize Phoenix**. Correlation uses session, request, A2A context/task/message, and OTEL trace/span identifiers.
+SpanPlane correlates Phoenix records with A2A and sideband evidence using session, request, A2A context/task/message, and OTEL trace/span identifiers. An external Phoenix deployment can be used instead of the managed local process.
 
 The semantic telemetry view adapts documented attribute dialects into one model, usage, tool, retrieval, memory, and evaluation vocabulary. It labels the source dialect and distinguishes missing model spans from model spans that omit usage. It never estimates provider token counts when no exported attribute contains them.
 

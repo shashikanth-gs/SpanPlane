@@ -19,9 +19,9 @@ The application is a local-first modular monolith. A single Node command owns pr
 | Local process supervisor | `bin` | Starts and stops Node plus the managed, pinned telemetry runtime |
 | Content presentation | `src/components/PartRenderer.tsx` | Shared rendered, structured, and feature-flagged raw views |
 
-## Runtime model and OpenTelemetry Collector
+## Runtime model and managed Phoenix
 
-`npx spanplane` is the only required application command. To provide an **out-of-the-box OpenTelemetry (OTel) Collector**, the CLI automatically provisions and manages an [Arize Phoenix](https://phoenix.arize.com/) instance locally. 
+`npx spanplane` is the only required application command. The CLI automatically provisions and manages an [Arize Phoenix](https://phoenix.arize.com/) instance locally. Phoenix is both the OTLP collector and trace store in this runtime; SpanPlane does not insert a separate collector process.
 
 - On the first run, it transparently creates an isolated Python virtual environment beneath the `.spanplane-data` directory and installs the required Phoenix dependencies.
 - It starts the Phoenix OTel collector on loopback, selecting unused ports automatically.
