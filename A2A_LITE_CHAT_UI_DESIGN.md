@@ -285,18 +285,15 @@ optional auth design, test pyramid, Docker.
 
 ### 7.3 Naming
 
-Note: Google's own A2A codelabs already use "**Purchasing Concierge**" as a sample
-pattern name for a front-facing orchestrator *agent* — so "Concierge" is a
-well-established metaphor in this exact ecosystem (validates the fit) but risks
-being confused with that specific sample. No domain/trademark/npm-name check has
-been done for any of these — verify before locking one in.
+This is a project, not a product — no metaphor name. Stay in the ecosystem's own
+naming convention (`a2a-inspector`, `a2a-cli`, `a2a-ui`, `a2a-samples`: literal
+`a2a-<noun>`), which also makes it discoverable next to those in search and
+awesome-lists. No domain/npm-name availability check has been done — verify before
+locking one in.
 
-| Name | Why | Risk |
-|---|---|---|
-| **Concierge Desk** | Exact metaphor: initiates requests, delegates to the right specialist, follows through to done; "Desk" disambiguates from Google's codelab agent | Still evokes the codelab pattern name |
-| **Intake** | Plain, enterprise-recognizable term ("workflow intake") — reads as a product category, not a metaphor | Less distinctive/brandable |
-| **Atrium** | Entry space people pass through into the building (the org's agent workflows) | Less action-oriented |
-| **Dispatch** | Evokes sending work to agents and tracking it | Very common word/package name already |
-
-Leaning toward **Concierge Desk** (distinctiveness) or **Intake** (plain enterprise
-read) — final call pending a name-availability check.
+| Name | Why |
+|---|---|
+| **`a2a-workflow-console`** (leaning toward this) | Says exactly what it is: a console for running/monitoring human-initiated A2A workflows |
+| `a2a-human-loop` | Short, hits the "human-in-the-loop" search term directly |
+| `a2a-task-console` | Emphasizes the task-centric model that's the actual architectural core (§7.2.2) |
+| `a2a-agent-workflow-ui` | Most verbose, maximizes exact-match keyword coverage |
