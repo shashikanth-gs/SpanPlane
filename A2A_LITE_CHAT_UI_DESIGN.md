@@ -283,17 +283,21 @@ optional auth design, test pyramid, Docker.
 10. **Multi-tenancy in the data model from day one** — org/team/user on both the
     auth-token store (§5) and now task ownership too.
 
-### 7.3 Naming
+### 7.3 Naming — decided
 
-This is a project, not a product — no metaphor name. Stay in the ecosystem's own
+**Repo/project name: `a2a-agent-workflow-ui`**
+
+**Description (repo tagline / README opener, SEO-keyworded):**
+
+> A human-in-the-loop console for Agent2Agent (A2A) workflows. Discover an org's
+> registered A2A agents, start tasks, respond to input-required and auth-required
+> steps, and track task execution in real time with full multi-modal message and
+> artifact rendering (text, Markdown, JSON, files, images, audio, video, PDF).
+
+This is a project, not a product — no metaphor name; stays in the ecosystem's own
 naming convention (`a2a-inspector`, `a2a-cli`, `a2a-ui`, `a2a-samples`: literal
 `a2a-<noun>`), which also makes it discoverable next to those in search and
-awesome-lists. No domain/npm-name availability check has been done — verify before
-locking one in.
-
-| Name | Why |
-|---|---|
-| **`a2a-workflow-console`** (leaning toward this) | Says exactly what it is: a console for running/monitoring human-initiated A2A workflows |
-| `a2a-human-loop` | Short, hits the "human-in-the-loop" search term directly |
-| `a2a-task-console` | Emphasizes the task-centric model that's the actual architectural core (§7.2.2) |
-| `a2a-agent-workflow-ui` | Most verbose, maximizes exact-match keyword coverage |
+awesome-lists. Other options considered: `a2a-workflow-console`, `a2a-human-loop`,
+`a2a-task-console` — all valid, `a2a-agent-workflow-ui` chosen as the most
+exact-match keyword coverage. No domain/npm-name availability check has been done —
+verify before creating the repo.
