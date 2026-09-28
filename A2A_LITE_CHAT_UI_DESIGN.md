@@ -1,10 +1,16 @@
-# Design notes: a lightweight A2A chat UI ("SpanPlane Lite")
+# Design notes: an enterprise human-in-the-loop front door for A2A workflows
 
 > Status: brainstorm / pre-implementation. Nothing in this document has been built.
 > This lives on branch `docs/a2a-lite-chat-ui-design` in this repo purely as a parking
 > place for design discussion. The intent is to read this later, create a **separate
 > new repository**, and implement from there — this is not meant to become part of
 > SpanPlane's own codebase or roadmap.
+>
+> **Revision note:** §§1–6 below are the original v1 brainstorm ("a lightweight A2A
+> chat UI"). §7 onward is a v2 reframe — the product is not a chat-with-one-agent
+> tool or a testbench; it's the human entry point into an org's *existing* A2A agent
+> mesh. Read §7 first; treat §§1–6 as the still-valid technical foundation (gateway,
+> rendering, sideband, auth) that the v2 feature set builds on.
 
 ## 1. Goal
 
@@ -176,3 +182,121 @@ integration:
    login, then Plane B user-delegated redirect flow.
 6. Carry over Vitest/ESLint/CI config as a baseline, add Playwright for streaming.
 7. Dockerfile + compose once the above is stable.
+
+---
+
+## 7. v2 reframe: the human entry point into an org's A2A agent mesh
+
+A2A already handles agent-to-agent delegation and fan-out invisibly. What's missing
+industry-wide — and what every prior-art project in §3 fails to address — is the
+*human* half of human-in-the-loop: a place for a person to start a process, get
+pulled back in exactly when an agent needs a decision, and see it through to done,
+across however many agents/workflows the org already runs. That's this product.
+Not a testbench, not a single-agent chat demo.
+
+### 7.1 Architecture (supersedes/extends §4)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  UI (Next.js)                                                │
+│  ├─ Agent/workflow catalog   (browse what can be started)    │
+│  ├─ Task inbox               (mine / needs-my-input / done)  │
+│  └─ Task detail view         (chat thread + artifacts,       │
+│      a detail view of a task, not the top-level model)       │
+├─────────────────────────────────────────────────────────────┤
+│  API layer                                                    │
+│  ├─ Gateway (lifted spanplane-gateway.ts → @a2a-js/sdk)       │
+│  ├─ Task store service        (durable, queryable)            │
+│  ├─ Webhook receiver           (tasks/pushNotificationConfig)  │
+│  ├─ Live fan-out (SSE/WS)      (webhook → connected clients)  │
+│  └─ Agent registry service     (catalog, pluggable backend)    │
+├─────────────────────────────────────────────────────────────┤
+│  Data layer                                                    │
+│  ├─ Tasks (org/team/owner-scoped, not per-browser)             │
+│  ├─ Org / users / roles (RBAC)                                │
+│  ├─ Per-agent auth tokens (server-side, encrypted)             │
+│  └─ Workflow audit log (who started/approved/rejected, when)   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+Everything from §4/§5 still holds underneath this: server-mediated gateway, Zustand
+for UI-local state (the task list itself is server data — fetched/cached, not stored
+client-side as the source of truth), request-guard/SSRF protections, the two-plane
+optional auth design, test pyramid, Docker.
+
+### 7.2 Feature set
+
+1. **Agent/workflow catalog, not a URL box.** Admin-curated (v1) registry of the
+   org's known agents, each surfacing its advertised skills as things a human can
+   start — a service-catalog view. Keep the registry behind an interface so a real
+   directory service can back it later.
+
+2. **Task-centric workspace — the actual core.** A2A's real unit of work is a *Task*
+   (`contextId`/`taskId` + lifecycle: `submitted → working → input-required /
+   auth-required → completed / failed / canceled / rejected`), not "a conversation."
+   Home view is an **inbox**: started by me / needs my input / completed / failed.
+   This is the single biggest structural difference from every prior-art project
+   surveyed in §3 — they're all conversation-first.
+
+3. **Structured start forms where possible, chat as fallback.** Confirmed against
+   the A2A spec: it does **not** standardize a per-skill JSON Schema — `AgentSkill`
+   only advertises accepted media types via `inputModes`/`outputModes`. So: default
+   to the generic text/JSON/file composer, but if an agent opts into advertising a
+   schema via an AgentCard extension, render a real form from it — the same
+   "infer safe UI from JSON, never model-guessing" approach SpanPlane already
+   applies to its rich-JSON *output* view, pointed at input instead.
+
+4. **First-class human-in-the-loop resumption.** `input-required`/`auth-required`
+   tasks surface prominently in the inbox; resuming continues the same
+   `taskId`/`contextId`. Task visibility is an org/role property (a manager can see
+   and act on a task a report started) — which is why task state needs a real
+   server-side store from day one. This supersedes the earlier "optional
+   resume-on-refresh, no durable store" framing in §4.4 — for shared/routed tasks,
+   durable server-side task state is required, not optional.
+
+5. **Push notifications wired end-to-end.** Use A2A's actual
+   `tasks/pushNotificationConfig/set` — client supplies a webhook URL, the agent
+   POSTs to it on significant state changes (`completed`/`failed`/`input-required`
+   etc.), our backend receives that and fans it out to connected clients over
+   SSE/WebSocket. This is what makes "notify a human the moment an agent needs
+   them" real instead of requiring an open tab and polling.
+
+6. **All content types + artifacts** — unchanged from §1/§2 (text/markdown/json/
+   files/images/audio/video/pdf/url), lifted straight from SpanPlane's rendering
+   stack.
+
+7. **Sideband, kept but dialed down.** Still the A2A extension mechanism, not
+   overhead — here it's a light "which agent/step is currently active" indicator
+   when an org's agents advertise it, not a trace explorer.
+
+8. **RBAC / org model.** Which agents or skills a user/team may invoke is a
+   permission, not a config toggle — required the moment tasks are shared or routed
+   between people.
+
+9. **A workflow audit trail — a real feature, not observability.** Explicitly
+   distinct from OTel span tracing (still out of scope): "who started/approved/
+   rejected this task and when" is a genuine enterprise requirement (approval
+   sign-off, compliance) and belongs in v1, kept lightweight and
+   task-lifecycle-scoped — not SpanPlane's append-only evidence-capture-everything
+   model.
+
+10. **Multi-tenancy in the data model from day one** — org/team/user on both the
+    auth-token store (§5) and now task ownership too.
+
+### 7.3 Naming
+
+Note: Google's own A2A codelabs already use "**Purchasing Concierge**" as a sample
+pattern name for a front-facing orchestrator *agent* — so "Concierge" is a
+well-established metaphor in this exact ecosystem (validates the fit) but risks
+being confused with that specific sample. No domain/trademark/npm-name check has
+been done for any of these — verify before locking one in.
+
+| Name | Why | Risk |
+|---|---|---|
+| **Concierge Desk** | Exact metaphor: initiates requests, delegates to the right specialist, follows through to done; "Desk" disambiguates from Google's codelab agent | Still evokes the codelab pattern name |
+| **Intake** | Plain, enterprise-recognizable term ("workflow intake") — reads as a product category, not a metaphor | Less distinctive/brandable |
+| **Atrium** | Entry space people pass through into the building (the org's agent workflows) | Less action-oriented |
+| **Dispatch** | Evokes sending work to agents and tracking it | Very common word/package name already |
+
+Leaning toward **Concierge Desk** (distinctiveness) or **Intake** (plain enterprise
+read) — final call pending a name-availability check.
